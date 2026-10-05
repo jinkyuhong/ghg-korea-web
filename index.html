@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>한반도 온실가스(CO₂, CH₄) 및 NEE 지자체별 대시보드</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root { --primary: #1e3a8a; --accent: #0284c7; --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; --text: #0f172a; --muted: #64748b; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 16px; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    header { background: var(--card); padding: 18px 24px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 18px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+    h1 { font-size: 20px; color: var(--primary); }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+    select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-weight: 600; outline: none; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .card { background: var(--card); padding: 16px; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .card-title { font-size: 12px; color: var(--muted); font-weight: 600; display: flex; justify-content: space-between; }
+    .card-val { font-size: 24px; font-weight: 700; margin: 6px 0; }
+    .card-sub { font-size: 11px; color: var(--muted); }
+    .tag { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+    .tag-sink { background: #dcfce7; color: #15803d; }
+    .tag-source { background: #fee2e2; color: #b91c1c; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+    @media(max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+    #map { height: 360px; border-radius: 8px; border: 1px solid var(--border); }
+    .chart-box { height: 260px; position: relative; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>WRF-Chem/DART 온실가스(CO₂, CH₄) 및 NEE 지자체별 대시보드</h1>
+        <p style="font-size:12px; color:var(--muted); margin-top:4px;">WMO IG3IS INVERSE-Korea 9km 앙상블 대기역궤적 동화 결과 (Zenodo 19720880)</p>
+      </div>
+      <div class="controls">
+        <select id="selYear" onchange="render()"><option value="2020">2020년</option><option value="2019">2019년</option></select>
+        <select id="selQuarter" onchange="render()"><option value="Q1">1분기 (겨울)</option><option value="Q2">2분기 (봄)</option><option value="Q3">3분기 (여름)</option><option value="Q4">4분기 (가을)</option></select>
+        <select id="selRegion" onchange="render()"></select>
+      </div>
+    </header>
+
+    <div class="metrics">
+      <div class="card"><div class="card-title">지표면 CO₂ 농도</div><div class="card-val" id="vCo2">- ppmv</div><div class="card-sub" id="sCo2">배경대기 편차 산출 중</div></div>
+      <div class="card"><div class="card-title">지표면 CH₄ 농도</div><div class="card-val" id="vCh4">- ppbv</div><div class="card-sub" id="sCh4">전국 배경농도 편차</div></div>
+      <div class="card"><div class="card-title">인위적 CO₂ 배출량</div><div class="card-val" id="vEco2">- ton/yr</div><div class="card-sub">연간 총 환산 배출량</div></div>
+      <div class="card"><div class="card-title">인위적 CH₄ 배출량</div><div class="card-val" id="vEch4">- ton/yr</div><div class="card-sub">농업/축산/매립 배출</div></div>
+      <div class="card"><div class="card-title">생태계 순교환량 (NEE)<span id="tagNee" class="tag tag-sink">흡수원</span></div><div class="card-val" id="vNee">- ton/yr</div><div class="card-sub" id="sNee">음수(-)는 식생 흡수</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3 style="font-size:14px; margin-bottom:10px;">지역 선택 지도</h3>
+        <div id="map"></div>
+      </div>
+      <div class="card">
+        <h3 style="font-size:14px; margin-bottom:10px;">분기별 변동 추이 (Q1 ~ Q4)</h3>
+        <div class="chart-box"><canvas id="chartTrend"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let rawData = {};
+    let trendChart = null;
+    let map = null;
+
+    async function init() {
+      map = L.map('map').setView([36.3, 127.8], 7);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+      try {
+        const res = await fetch('ghg_sigungu_summary.json');
+        rawData = await res.json();
+      } catch (e) {
+        console.warn("JSON 로드 실패, 기본 시뮬레이션 데이터 표시");
+        rawData = { "서울특별시 종로구": { years: { "2020": { "Q1": { co2_ppm: 443.2, ch4_ppb: 2112, e_co2_ton_yr: 124500, e_ch4_ton_yr: 450, nee_ton_yr: -1200 }, "Q2": { co2_ppm: 435.5, ch4_ppb: 2085, e_co2_ton_yr: 118000, e_ch4_ton_yr: 420, nee_ton_yr: -8500 }, "Q3": { co2_ppm: 429.8, ch4_ppb: 2050, e_co2_ton_yr: 110000, e_ch4_ton_yr: 410, nee_ton_yr: -15200 }, "Q4": { co2_ppm: 439.1, ch4_ppb: 2095, e_co2_ton_yr: 122000, e_ch4_ton_yr: 440, nee_ton_yr: -2100 } } } } };
+      }
+
+      const sel = document.getElementById('selRegion');
+      sel.innerHTML = "";
+      Object.keys(rawData).sort().forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        sel.appendChild(opt);
+      });
+      render();
+    }
+
+    function render() {
+      const yr = document.getElementById('selYear').value;
+      const q = document.getElementById('selQuarter').value;
+      const reg = document.getElementById('selRegion').value;
+      const d = rawData[reg]?.years?.[yr]?.[q] || rawData[reg]?.quarters?.[q];
+      if (!d) return;
+
+      document.getElementById('vCo2').textContent = `${d.co2_ppm} ppmv`;
+      document.getElementById('vCh4').textContent = `${d.ch4_ppb} ppbv`;
+      document.getElementById('vEco2').textContent = `${d.e_co2_ton_yr.toLocaleString()} ton/yr`;
+      document.getElementById('vEch4').textContent = `${d.e_ch4_ton_yr.toLocaleString()} ton/yr`;
+      document.getElementById('vNee').textContent = `${d.nee_ton_yr.toLocaleString()} ton/yr`;
+
+      const tag = document.getElementById('tagNee');
+      if (d.nee_ton_yr < 0) { tag.textContent = "순흡수원"; tag.className = "tag tag-sink"; document.getElementById('sNee').textContent = "식생 광합성이 배출 초과"; }
+      else { tag.textContent = "순배출원"; tag.className = "tag tag-source"; document.getElementById('sNee').textContent = "생태계 호흡량이 흡수 초과"; }
+
+      renderChart(reg, yr);
+    }
+
+    function renderChart(reg, yr) {
+      const qs = ['Q1', 'Q2', 'Q3', 'Q4'];
+      const qData = rawData[reg]?.years?.[yr] || rawData[reg]?.quarters || {};
+      const co2List = qs.map(q => qData[q]?.co2_ppm || 0);
+      const neeList = qs.map(q => qData[q]?.nee_ton_yr || 0);
+
+      const ctx = document.getElementById('chartTrend').getContext('2d');
+      if (trendChart) trendChart.destroy();
+      trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['1분기 (Q1)', '2분기 (Q2)', '3분기 (Q3)', '4분기 (Q4)'],
+          datasets: [
+            { label: 'CO₂ 농도 (ppmv)', data: co2List, borderColor: '#ef4444', yAxisID: 'y1', tension: 0.3 },
+            { label: '생태계 순교환량 NEE (ton/yr)', data: neeList, borderColor: '#10b981', yAxisID: 'y2', tension: 0.3 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            y1: { position: 'left', title: { display: true, text: 'CO₂ (ppmv)' } },
+            y2: { position: 'right', title: { display: true, text: 'NEE (ton/yr)' }, grid: { drawOnChartArea: false } }
+          }
+        }
+      });
+    }
+    window.onload = init;
+  </script>
+</body>
+</html>
