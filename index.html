@@ -241,7 +241,7 @@
     function init() {
       map = L.map('map', { zoomControl: false }).setView([36.3, 127.8], 7.5);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; CartoDB & OpenStreetMap | INVERSE-Korea KCP'
       }).addTo(map);
       markersLayer = L.layerGroup().addTo(map);
