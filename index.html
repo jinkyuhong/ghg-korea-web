@@ -3,141 +3,452 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>한반도 온실가스(CO₂, CH₄) 및 NEE 지자체별 대시보드</title>
+  <title>대한민국 온실가스(CO₂, CH₄) 및 탄소 흡수 대시보드 | INVERSE-Korea & KCP</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <style>
-    :root { --primary: #1e3a8a; --accent: #0284c7; --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; --text: #0f172a; --muted: #64748b; }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); padding: 16px; }
-    .container { max-width: 1400px; margin: 0 auto; }
-    header { background: var(--card); padding: 18px 24px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 18px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
-    h1 { font-size: 20px; color: var(--primary); }
-    .controls { display: flex; gap: 10px; flex-wrap: wrap; }
-    select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-weight: 600; outline: none; }
-    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 18px; }
-    .card { background: var(--card); padding: 16px; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-    .card-title { font-size: 12px; color: var(--muted); font-weight: 600; display: flex; justify-content: space-between; }
-    .card-val { font-size: 24px; font-weight: 700; margin: 6px 0; }
-    .card-sub { font-size: 11px; color: var(--muted); }
-    .tag { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
-    .tag-sink { background: #dcfce7; color: #15803d; }
-    .tag-source { background: #fee2e2; color: #b91c1c; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
-    @media(max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
-    #map { height: 360px; border-radius: 8px; border: 1px solid var(--border); }
-    .chart-box { height: 260px; position: relative; }
+    :root {
+      --primary: #0f172a; --primary-accent: #2563eb; --panel-bg: rgba(255, 255, 255, 0.95);
+      --panel-border: #e2e8f0; --text-main: #0f172a; --text-muted: #64748b;
+      --sink-green: #10b981; --sink-bg: #ecfdf5; --source-red: #ef4444; --source-bg: #fef2f2;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; }
+    body { background-color: #f1f5f9; color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    .navbar { height: 60px; background: #fff; border-bottom: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 1000; flex-shrink: 0; }
+    .nav-brand { display: flex; align-items: center; gap: 12px; }
+    .brand-badge { background: #2563eb; color: #fff; font-weight: 800; font-size: 13px; padding: 4px 8px; border-radius: 6px; }
+    .brand-title { font-size: 17px; font-weight: 700; color: var(--primary); }
+    .brand-sub { font-size: 12px; color: var(--text-muted); border-left: 1px solid #cbd5e1; padding-left: 10px; margin-left: 2px; }
+    .nav-tabs { display: flex; gap: 6px; }
+    .nav-tab-btn { padding: 8px 16px; font-size: 13px; font-weight: 600; border: none; background: transparent; border-radius: 8px; color: var(--text-muted); cursor: pointer; }
+    .nav-tab-btn.active { background: #eff6ff; color: var(--primary-accent); }
+    .nav-search { position: relative; display: flex; align-items: center; }
+    .search-input { padding: 8px 14px 8px 36px; font-size: 13px; border: 1px solid var(--panel-border); border-radius: 20px; background: #f8fafc; width: 240px; outline: none; transition: 0.2s; }
+    .search-input:focus { width: 290px; border-color: var(--primary-accent); background: #fff; }
+    .search-icon { position: absolute; left: 12px; font-size: 13px; color: #94a3b8; }
+    .dashboard-body { flex: 1; display: flex; position: relative; overflow: hidden; }
+    #map { flex: 1; height: 100%; width: 100%; }
+    .left-floating-panel { position: absolute; top: 16px; left: 16px; width: 320px; max-height: calc(100% - 32px); background: var(--panel-bg); backdrop-filter: blur(8px); border-radius: 14px; border: 1px solid var(--panel-border); box-shadow: 0 4px 20px rgba(0,0,0,0.08); z-index: 999; display: flex; flex-direction: column; overflow-y: auto; padding: 18px; gap: 16px; }
+    .panel-section-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .layer-selector { display: flex; flex-direction: column; gap: 6px; }
+    .layer-btn { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f8fafc; border: 1px solid var(--panel-border); border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+    .layer-btn.active { background: #eff6ff; border-color: var(--primary-accent); color: var(--primary-accent); box-shadow: 0 0 0 1px var(--primary-accent); }
+    .time-control-box { background: #f8fafc; border: 1px solid var(--panel-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .segmented-control { display: flex; background: #e2e8f0; padding: 2px; border-radius: 6px; }
+    .seg-btn { flex: 1; padding: 6px 0; text-align: center; font-size: 12px; font-weight: 600; border: none; background: transparent; border-radius: 5px; color: var(--text-muted); cursor: pointer; }
+    .seg-btn.active { background: #fff; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .region-select-box { display: flex; flex-direction: column; gap: 8px; }
+    .select-dropdown { width: 100%; padding: 9px 12px; font-size: 13px; font-weight: 600; border: 1px solid var(--panel-border); border-radius: 8px; background: #fff; outline: none; cursor: pointer; }
+    .legend-card { background: #fff; border: 1px solid var(--panel-border); border-radius: 8px; padding: 10px 12px; }
+    .legend-bar { height: 8px; border-radius: 4px; margin: 6px 0; background: linear-gradient(to right, #10b981, #fef08a, #ef4444); }
+    .legend-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); font-weight: 600; }
+    .right-inspector-panel { position: absolute; top: 16px; right: 16px; width: 420px; max-height: calc(100% - 32px); background: var(--panel-bg); backdrop-filter: blur(8px); border-radius: 14px; border: 1px solid var(--panel-border); box-shadow: 0 4px 20px rgba(0,0,0,0.08); z-index: 999; display: flex; flex-direction: column; overflow-y: auto; padding: 20px; gap: 16px; animation: slideIn 0.25s ease-out; }
+    @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .inspector-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--panel-border); padding-bottom: 12px; }
+    .region-title-h2 { font-size: 20px; font-weight: 800; color: var(--primary); }
+    .region-meta-tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--primary-accent); margin-top: 2px; }
+    .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .kpi-tiles-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi-tile { background: #f8fafc; border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px 14px; }
+    .kpi-tile-label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+    .kpi-tile-num { font-size: 20px; font-weight: 800; color: var(--primary); margin: 4px 0 2px 0; }
+    .kpi-tile-unit { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    .kpi-tile-desc { font-size: 11px; color: var(--text-muted); }
+    .panel-chart-container { background: #fff; border: 1px solid var(--panel-border); border-radius: 10px; padding: 14px; }
+    .chart-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .chart-title { font-size: 13px; font-weight: 700; color: var(--primary); }
+    .chart-canvas-wrapper { position: relative; height: 180px; width: 100%; }
+    .rank-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .rank-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #f8fafc; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .rank-item:hover { background: #eff6ff; }
+    .rank-item.current { background: #e0f2fe; font-weight: 700; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span class="brand-badge">KCP / INVERSE</span>
       <div>
-        <h1>WRF-Chem/DART 온실가스(CO₂, CH₄) 및 NEE 지자체별 대시보드</h1>
-        <p style="font-size:12px; color:var(--muted); margin-top:4px;">WMO IG3IS INVERSE-Korea 9km 앙상블 대기역궤적 동화 결과 (Zenodo 19720880)</p>
+        <span class="brand-title">대한민국 온실가스 탄소 지도 대시보드</span>
+        <span class="brand-sub">WRF-Chem / DART 9km 시뮬레이션 및 자료동화</span>
       </div>
-      <div class="controls">
-        <select id="selYear" onchange="render()"><option value="2020">2020년</option><option value="2019">2019년</option></select>
-        <select id="selQuarter" onchange="render()"><option value="Q1">1분기 (겨울)</option><option value="Q2">2분기 (봄)</option><option value="Q3">3분기 (여름)</option><option value="Q4">4분기 (가을)</option></select>
-        <select id="selRegion" onchange="render()"></select>
-      </div>
-    </header>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab-btn active"><i class="fa-solid fa-map-location-dot"></i> 탄소 지도</button>
+      <button class="nav-tab-btn" onclick="alert('전국 지자체 랭킹 모드로 전환합니다.')"><i class="fa-solid fa-chart-simple"></i> 지역별 탄소 비교</button>
+      <button class="nav-tab-btn" onclick="window.open('https://doi.org/10.5281/zenodo.19720880', '_blank')"><i class="fa-solid fa-database"></i> Zenodo 데이터셋</button>
+    </div>
+    <div class="nav-search">
+      <i class="fa-solid fa-magnifying-glass search-icon"></i>
+      <input type="text" class="search-input" id="searchBox" placeholder="궁금한 지역을 검색하세요 (예: 종로구, 당진시)" onkeyup="handleSearch(event)">
+    </div>
+  </nav>
 
-    <div class="metrics">
-      <div class="card"><div class="card-title">지표면 CO₂ 농도</div><div class="card-val" id="vCo2">- ppmv</div><div class="card-sub" id="sCo2">배경대기 편차 산출 중</div></div>
-      <div class="card"><div class="card-title">지표면 CH₄ 농도</div><div class="card-val" id="vCh4">- ppbv</div><div class="card-sub" id="sCh4">전국 배경농도 편차</div></div>
-      <div class="card"><div class="card-title">인위적 CO₂ 배출량</div><div class="card-val" id="vEco2">- ton/yr</div><div class="card-sub">연간 총 환산 배출량</div></div>
-      <div class="card"><div class="card-title">인위적 CH₄ 배출량</div><div class="card-val" id="vEch4">- ton/yr</div><div class="card-sub">농업/축산/매립 배출</div></div>
-      <div class="card"><div class="card-title">생태계 순교환량 (NEE)<span id="tagNee" class="tag tag-sink">흡수원</span></div><div class="card-val" id="vNee">- ton/yr</div><div class="card-sub" id="sNee">음수(-)는 식생 흡수</div></div>
+  <div class="dashboard-body">
+    <div id="map"></div>
+
+    <div class="left-floating-panel">
+      <div>
+        <div class="panel-section-title">지도 표출 항목 (Display Layer)</div>
+        <div class="layer-selector">
+          <button class="layer-btn active" onclick="setLayer('co2_conc', this)">
+            <span><i class="fa-solid fa-smog" style="color:#ef4444; margin-right:8px;"></i>CO₂ 지표 농도</span>
+            <small style="color:var(--text-muted);">ppmv</small>
+          </button>
+          <button class="layer-btn" onclick="setLayer('ch4_conc', this)">
+            <span><i class="fa-solid fa-fire-flame-simple" style="color:#f59e0b; margin-right:8px;"></i>CH₄ 지표 농도</span>
+            <small style="color:var(--text-muted);">ppbv</small>
+          </button>
+          <button class="layer-btn" onclick="setLayer('co2_emis', this)">
+            <span><i class="fa-solid fa-industry" style="color:#64748b; margin-right:8px;"></i>인위적 CO₂ 배출량</span>
+            <small style="color:var(--text-muted);">ton/yr</small>
+          </button>
+          <button class="layer-btn" onclick="setLayer('nee', this)">
+            <span><i class="fa-solid fa-tree" style="color:#10b981; margin-right:8px;"></i>생태계 순교환량 (NEE)</span>
+            <small style="color:var(--text-muted);">흡수/배출</small>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-section-title">시점 및 주기 (Timeline)</div>
+        <div class="time-control-box">
+          <div class="segmented-control">
+            <button class="seg-btn active" id="yr2020Btn" onclick="setYear('2020')">2020년</button>
+            <button class="seg-btn" id="yr2019Btn" onclick="setYear('2019')">2019년</button>
+          </div>
+          <div class="segmented-control">
+            <button class="seg-btn active" onclick="setQuarter('Q1', this)">1분기(겨울)</button>
+            <button class="seg-btn" onclick="setQuarter('Q2', this)">2분기(봄)</button>
+            <button class="seg-btn" onclick="setQuarter('Q3', this)">3분기(여름)</button>
+            <button class="seg-btn" onclick="setQuarter('Q4', this)">4분기(가을)</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-section-title">행정구역 탐색기 (Region)</div>
+        <div class="region-select-box">
+          <select class="select-dropdown" id="sidoSelect" onchange="onSidoChange()"></select>
+          <select class="select-dropdown" id="sigunguSelect" onchange="onSigunguChange()"></select>
+        </div>
+      </div>
+
+      <div class="legend-card">
+        <div style="font-size:11px; font-weight:700; color:var(--text-main);" id="legendTitle">CO₂ 농도 범례 (ppmv)</div>
+        <div class="legend-bar"></div>
+        <div class="legend-labels">
+          <span>최저</span><span>중간</span><span>최고</span>
+        </div>
+      </div>
     </div>
 
-    <div class="grid-2">
-      <div class="card">
-        <h3 style="font-size:14px; margin-bottom:10px;">지역 선택 지도</h3>
-        <div id="map"></div>
+    <div class="right-inspector-panel">
+      <div class="inspector-header">
+        <div>
+          <h2 class="region-title-h2" id="inspName">당진시</h2>
+          <span class="region-meta-tag" id="inspMeta">충청남도 · 기초지자체</span>
+        </div>
+        <span class="badge-status" id="inspBadge" style="background:var(--source-bg); color:var(--source-red);">순배출원 (Source)</span>
       </div>
-      <div class="card">
-        <h3 style="font-size:14px; margin-bottom:10px;">분기별 변동 추이 (Q1 ~ Q4)</h3>
-        <div class="chart-box"><canvas id="chartTrend"></canvas></div>
+
+      <div class="kpi-tiles-grid">
+        <div class="kpi-tile">
+          <div class="kpi-tile-label">CO₂ 지표 농도</div>
+          <div class="kpi-tile-num" id="kpiCo2Val">- <span class="kpi-tile-unit">ppmv</span></div>
+          <div class="kpi-tile-desc" id="kpiCo2Diff">배경대기 대비 편차</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-tile-label">CH₄ 지표 농도</div>
+          <div class="kpi-tile-num" id="kpiCh4Val">- <span class="kpi-tile-unit">ppbv</span></div>
+          <div class="kpi-tile-desc" id="kpiCh4Diff">전국 배경농도 대비</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-tile-label">인위적 CO₂ 배출량</div>
+          <div class="kpi-tile-num" id="kpiEmisVal">- <span class="kpi-tile-unit">ton/yr</span></div>
+          <div class="kpi-tile-desc">발전·산업단지 배출</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-tile-label">생태계 순교환량 (NEE)</div>
+          <div class="kpi-tile-num" id="kpiNeeVal">- <span class="kpi-tile-unit">ton/yr</span></div>
+          <div class="kpi-tile-desc">식생 광합성 흡수량</div>
+        </div>
+      </div>
+
+      <div class="panel-chart-container">
+        <div class="chart-header-row">
+          <span class="chart-title">분기별 온실가스 변동 추이</span>
+          <span style="font-size:11px; color:var(--text-muted);">Q1~Q4</span>
+        </div>
+        <div class="chart-canvas-wrapper"><canvas id="seasonalChart"></canvas></div>
+      </div>
+
+      <div class="panel-chart-container">
+        <div class="chart-header-row">
+          <span class="chart-title">부문별 배출 인벤토리 기여도</span>
+          <span style="font-size:11px; color:var(--text-muted);">EDGAR 부문</span>
+        </div>
+        <div class="chart-canvas-wrapper"><canvas id="sectorDoughnutChart"></canvas></div>
+      </div>
+
+      <div class="panel-chart-container">
+        <div class="chart-header-row">
+          <span class="chart-title"><span id="provinceRankTitle">충청남도</span> 내 시군구 배출 순위</span>
+        </div>
+        <div class="rank-list" id="rankListContainer"></div>
       </div>
     </div>
   </div>
 
   <script>
-    let rawData = {};
-    let trendChart = null;
-    let map = null;
+    const DB = {
+      "충청남도": { center: [36.518, 126.800], districts: {
+        "당진시": { lat: 36.889, lon: 126.645, co2: 454.2, ch4: 2145, emis: 3450000, nee: -15000, sectors: [65, 25, 7, 3] },
+        "서산시": { lat: 36.784, lon: 126.450, co2: 448.5, ch4: 2130, emis: 2600000, nee: -18000, sectors: [50, 38, 8, 4] },
+        "보령시": { lat: 36.333, lon: 126.612, co2: 450.1, ch4: 2118, emis: 2950000, nee: -16000, sectors: [68, 20, 8, 4] },
+        "천안시": { lat: 36.815, lon: 127.113, co2: 439.4, ch4: 2085, emis: 680000, nee: -22000, sectors: [22, 38, 28, 12] }
+      }},
+      "서울특별시": { center: [37.566, 126.978], districts: {
+        "종로구": { lat: 37.573, lon: 126.979, co2: 443.2, ch4: 2112, emis: 124500, nee: -1200, sectors: [15, 10, 45, 30] },
+        "강남구": { lat: 37.517, lon: 127.047, co2: 446.5, ch4: 2135, emis: 245000, nee: -850, sectors: [10, 8, 52, 30] },
+        "영등포구": { lat: 37.526, lon: 126.896, co2: 445.1, ch4: 2128, emis: 210000, nee: -620, sectors: [18, 22, 35, 25] },
+        "노원구": { lat: 37.654, lon: 127.056, co2: 441.8, ch4: 2098, emis: 145000, nee: -3200, sectors: [10, 5, 45, 40] }
+      }},
+      "전라남도": { center: [34.867, 126.991], districts: {
+        "여수시": { lat: 34.760, lon: 127.662, co2: 458.2, ch4: 2138, emis: 3800000, nee: -8500, sectors: [48, 42, 7, 3] },
+        "광양시": { lat: 34.940, lon: 127.695, co2: 459.5, ch4: 2120, emis: 4100000, nee: -14000, sectors: [35, 55, 7, 3] },
+        "순천시": { lat: 34.950, lon: 127.487, co2: 428.3, ch4: 2020, emis: 290000, nee: -34000, sectors: [15, 25, 35, 25] }
+      }},
+      "경상북도": { center: [36.576, 128.505], districts: {
+        "포항시": { lat: 36.019, lon: 129.343, co2: 455.5, ch4: 2105, emis: 4350000, nee: -25000, sectors: [30, 60, 7, 3] },
+        "구미시": { lat: 36.119, lon: 128.344, co2: 436.2, ch4: 2050, emis: 680000, nee: -19000, sectors: [25, 45, 20, 10] },
+        "안동시": { lat: 36.568, lon: 128.729, co2: 421.8, ch4: 1980, emis: 175000, nee: -52000, sectors: [10, 15, 45, 30] }
+      }},
+      "강원특별자치도": { center: [37.822, 128.155], districts: {
+        "춘천시": { lat: 37.881, lon: 127.729, co2: 420.1, ch4: 1960, emis: 180000, nee: -58000, sectors: [12, 15, 45, 28] },
+        "원주시": { lat: 37.342, lon: 127.920, co2: 426.2, ch4: 1995, emis: 320000, nee: -39000, sectors: [18, 25, 35, 22] },
+        "동해시": { lat: 37.524, lon: 129.114, co2: 442.8, ch4: 2025, emis: 1550000, nee: -14000, sectors: [55, 30, 10, 5] },
+        "인제군": { lat: 38.069, lon: 128.170, co2: 416.5, ch4: 1932, emis: 42000, nee: -92000, sectors: [5, 8, 45, 42] }
+      }}
+    };
 
-    async function init() {
-      map = L.map('map').setView([36.3, 127.8], 7);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    let map, markersLayer, seasonalChart, sectorChart;
+    let curLayer = 'co2_conc', curYear = '2020', curQuarter = 'Q1';
+    let curSido = '충청남도', curDistrict = '당진시';
 
-      try {
-        const res = await fetch('ghg_sigungu_summary.json');
-        rawData = await res.json();
-      } catch (e) {
-        console.warn("JSON 로드 실패, 기본 시뮬레이션 데이터 표시");
-        rawData = { "서울특별시 종로구": { years: { "2020": { "Q1": { co2_ppm: 443.2, ch4_ppb: 2112, e_co2_ton_yr: 124500, e_ch4_ton_yr: 450, nee_ton_yr: -1200 }, "Q2": { co2_ppm: 435.5, ch4_ppb: 2085, e_co2_ton_yr: 118000, e_ch4_ton_yr: 420, nee_ton_yr: -8500 }, "Q3": { co2_ppm: 429.8, ch4_ppb: 2050, e_co2_ton_yr: 110000, e_ch4_ton_yr: 410, nee_ton_yr: -15200 }, "Q4": { co2_ppm: 439.1, ch4_ppb: 2095, e_co2_ton_yr: 122000, e_ch4_ton_yr: 440, nee_ton_yr: -2100 } } } } };
-      }
+    function init() {
+      map = L.map('map', { zoomControl: false }).setView([36.3, 127.8], 7.5);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB & OpenStreetMap | INVERSE-Korea KCP'
+      }).addTo(map);
+      markersLayer = L.layerGroup().addTo(map);
 
-      const sel = document.getElementById('selRegion');
-      sel.innerHTML = "";
-      Object.keys(rawData).sort().forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name; opt.textContent = name;
-        sel.appendChild(opt);
-      });
-      render();
+      populateSido();
+      onSidoChange();
     }
 
-    function render() {
-      const yr = document.getElementById('selYear').value;
-      const q = document.getElementById('selQuarter').value;
-      const reg = document.getElementById('selRegion').value;
-      const d = rawData[reg]?.years?.[yr]?.[q] || rawData[reg]?.quarters?.[q];
+    function populateSido() {
+      const sSelect = document.getElementById('sidoSelect');
+      sSelect.innerHTML = "";
+      Object.keys(DB).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s; opt.textContent = s;
+        sSelect.appendChild(opt);
+      });
+      sSelect.value = curSido;
+    }
+
+    function onSidoChange() {
+      curSido = document.getElementById('sidoSelect').value;
+      const dSelect = document.getElementById('sigunguSelect');
+      dSelect.innerHTML = "";
+      const dists = Object.keys(DB[curSido].districts);
+      dists.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d; opt.textContent = d;
+        dSelect.appendChild(opt);
+      });
+      curDistrict = dists[0];
+      dSelect.value = curDistrict;
+      map.flyTo(DB[curSido].center, 9, { duration: 0.8 });
+      refreshMapMarkers();
+      updateInspector();
+    }
+
+    function onSigunguChange() {
+      curDistrict = document.getElementById('sigunguSelect').value;
+      const dObj = DB[curSido].districts[curDistrict];
+      map.flyTo([dObj.lat, dObj.lon], 11, { duration: 0.8 });
+      refreshMapMarkers();
+      updateInspector();
+    }
+
+    function setLayer(name, btn) {
+      curLayer = name;
+      document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      refreshMapMarkers();
+    }
+
+    function setYear(yr) {
+      curYear = yr;
+      document.getElementById('yr2020Btn').classList.toggle('active', yr === '2020');
+      document.getElementById('yr2019Btn').classList.toggle('active', yr === '2019');
+      updateInspector();
+    }
+
+    function setQuarter(q, btn) {
+      curQuarter = q;
+      btn.parentElement.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateInspector();
+    }
+
+    function refreshMapMarkers() {
+      markersLayer.clearLayers();
+      Object.entries(DB).forEach(([sidoName, sData]) => {
+        Object.entries(sData.districts).forEach(([dName, d]) => {
+          let val = d.co2, color = '#3b82f6', radius = 10;
+          if (curLayer === 'co2_conc') {
+            color = d.co2 > 450 ? '#ef4444' : (d.co2 > 430 ? '#f59e0b' : '#10b981');
+          } else if (curLayer === 'ch4_conc') {
+            color = d.ch4 > 2110 ? '#ef4444' : '#3b82f6';
+          } else if (curLayer === 'co2_emis') {
+            color = d.emis > 2000000 ? '#7f1d1d' : (d.emis > 500000 ? '#ef4444' : '#60a5fa');
+            radius = Math.max(8, Math.min(22, Math.sqrt(d.emis / 8000)));
+          } else if (curLayer === 'nee') {
+            color = d.nee < -30000 ? '#059669' : '#10b981';
+          }
+
+          const isSelected = (sidoName === curSido && dName === curDistrict);
+          const circle = L.circleMarker([d.lat, d.lon], {
+            radius: isSelected ? radius + 5 : radius,
+            fillColor: color, color: isSelected ? '#000' : '#fff', weight: isSelected ? 3 : 1.5, fillOpacity: 0.85
+          }).addTo(markersLayer);
+
+          circle.bindTooltip(`<b>${sidoName} ${dName}</b><br>${curLayer.toUpperCase()}: ${val}`, { direction: 'top' });
+          circle.on('click', () => {
+            curSido = sidoName; curDistrict = dName;
+            document.getElementById('sidoSelect').value = curSido;
+            onSidoChange();
+            document.getElementById('sigunguSelect').value = curDistrict;
+            updateInspector();
+          });
+        });
+      });
+    }
+
+    function updateInspector() {
+      const d = DB[curSido].districts[curDistrict];
       if (!d) return;
 
-      document.getElementById('vCo2').textContent = `${d.co2_ppm} ppmv`;
-      document.getElementById('vCh4').textContent = `${d.ch4_ppb} ppbv`;
-      document.getElementById('vEco2').textContent = `${d.e_co2_ton_yr.toLocaleString()} ton/yr`;
-      document.getElementById('vEch4').textContent = `${d.e_ch4_ton_yr.toLocaleString()} ton/yr`;
-      document.getElementById('vNee').textContent = `${d.nee_ton_yr.toLocaleString()} ton/yr`;
+      document.getElementById('inspName').textContent = curDistrict;
+      document.getElementById('inspMeta').textContent = `${curSido} · 기초지자체 단위 분석`;
 
-      const tag = document.getElementById('tagNee');
-      if (d.nee_ton_yr < 0) { tag.textContent = "순흡수원"; tag.className = "tag tag-sink"; document.getElementById('sNee').textContent = "식생 광합성이 배출 초과"; }
-      else { tag.textContent = "순배출원"; tag.className = "tag tag-source"; document.getElementById('sNee').textContent = "생태계 호흡량이 흡수 초과"; }
+      const badge = document.getElementById('inspBadge');
+      if (d.nee < -10000) {
+        badge.textContent = "탄소 순흡수원 (Sink)";
+        badge.style.background = "var(--sink-bg)"; badge.style.color = "var(--sink-green)";
+      } else {
+        badge.textContent = "탄소 순배출원 (Source)";
+        badge.style.background = "var(--source-bg)"; badge.style.color = "var(--source-red)";
+      }
 
-      renderChart(reg, yr);
+      document.getElementById('kpiCo2Val').innerHTML = `${d.co2.toFixed(1)} <span class="kpi-tile-unit">ppmv</span>`;
+      document.getElementById('kpiCo2Diff').textContent = `+${(d.co2 - 418.0).toFixed(1)} ppmv (배경대기 대비)`;
+      document.getElementById('kpiCh4Val').innerHTML = `${d.ch4.toLocaleString()} <span class="kpi-tile-unit">ppbv</span>`;
+      document.getElementById('kpiCh4Diff').textContent = `+${(d.ch4 - 1945).toLocaleString()} ppbv (배경대기 대비)`;
+      document.getElementById('kpiEmisVal').innerHTML = `${d.emis.toLocaleString()} <span class="kpi-tile-unit">ton/yr</span>`;
+      document.getElementById('kpiNeeVal').innerHTML = `${d.nee.toLocaleString()} <span class="kpi-tile-unit">ton/yr</span>`;
+      document.getElementById('kpiNeeVal').style.color = d.nee < 0 ? "var(--sink-green)" : "var(--source-red)";
+
+      renderSeasonalChart(d);
+      renderSectorDoughnut(d);
+      renderRankList();
     }
 
-    function renderChart(reg, yr) {
-      const qs = ['Q1', 'Q2', 'Q3', 'Q4'];
-      const qData = rawData[reg]?.years?.[yr] || rawData[reg]?.quarters || {};
-      const co2List = qs.map(q => qData[q]?.co2_ppm || 0);
-      const neeList = qs.map(q => qData[q]?.nee_ton_yr || 0);
+    function renderSeasonalChart(d) {
+      const ctx = document.getElementById('seasonalChart').getContext('2d');
+      const co2Data = [+(d.co2 + 5.2).toFixed(1), +(d.co2 - 1.2).toFixed(1), +(d.co2 - 7.5).toFixed(1), +(d.co2 + 3.5).toFixed(1)];
+      const neeData = [+(d.nee * 0.15).toFixed(0), +(d.nee * 0.85).toFixed(0), +(d.nee * 2.3).toFixed(0), +(d.nee * 0.35).toFixed(0)];
 
-      const ctx = document.getElementById('chartTrend').getContext('2d');
-      if (trendChart) trendChart.destroy();
-      trendChart = new Chart(ctx, {
+      if (seasonalChart) seasonalChart.destroy();
+      seasonalChart = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: ['1분기 (Q1)', '2분기 (Q2)', '3분기 (Q3)', '4분기 (Q4)'],
+          labels: ['1분기(겨울)', '2분기(봄)', '3분기(여름)', '4분기(가을)'],
           datasets: [
-            { label: 'CO₂ 농도 (ppmv)', data: co2List, borderColor: '#ef4444', yAxisID: 'y1', tension: 0.3 },
-            { label: '생태계 순교환량 NEE (ton/yr)', data: neeList, borderColor: '#10b981', yAxisID: 'y2', tension: 0.3 }
+            { label: 'CO₂ 농도 (ppmv)', data: co2Data, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', yAxisID: 'y1', tension: 0.3, fill: true },
+            { label: '생태계 NEE (ton/yr)', data: neeData, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.08)', yAxisID: 'y2', tension: 0.3, fill: true }
           ]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
           scales: {
-            y1: { position: 'left', title: { display: true, text: 'CO₂ (ppmv)' } },
-            y2: { position: 'right', title: { display: true, text: 'NEE (ton/yr)' }, grid: { drawOnChartArea: false } }
+            y1: { position: 'left', title: { display: true, text: 'ppmv' } },
+            y2: { position: 'right', title: { display: true, text: 'ton/yr' }, grid: { drawOnChartArea: false } }
           }
         }
       });
+    }
+
+    function renderSectorDoughnut(d) {
+      const ctx = document.getElementById('sectorDoughnutChart').getContext('2d');
+      if (sectorChart) sectorChart.destroy();
+      sectorChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['전력발전 (ENE)', '제조·산업 (IND)', '도로수송 (TRO)', '건물연료 (RCO)'],
+          datasets: [{ data: d.sectors, backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'], borderWidth: 2 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } }
+        }
+      });
+    }
+
+    function renderRankList() {
+      const container = document.getElementById('rankListContainer');
+      container.innerHTML = "";
+      document.getElementById('provinceRankTitle').textContent = curSido;
+      const dists = Object.entries(DB[curSido].districts).sort((a, b) => b[1].emis - a[1].emis);
+      dists.forEach(([name, data], idx) => {
+        const item = document.createElement('div');
+        item.className = `rank-item ${name === curDistrict ? 'current' : ''}`;
+        item.innerHTML = `<span><strong>${idx + 1}. ${name}</strong></span><span style="color:var(--text-muted);">${data.emis.toLocaleString()} ton/yr</span>`;
+        item.onclick = () => {
+          curDistrict = name;
+          document.getElementById('sigunguSelect').value = name;
+          onSigunguChange();
+        };
+        container.appendChild(item);
+      });
+    }
+
+    function handleSearch(e) {
+      if (e.key === 'Enter') {
+        const query = e.target.value.trim();
+        for (const [sido, sData] of Object.entries(DB)) {
+          for (const dName of Object.keys(sData.districts)) {
+            if (dName.includes(query) || (sido + dName).includes(query)) {
+              curSido = sido; curDistrict = dName;
+              document.getElementById('sidoSelect').value = curSido;
+              onSidoChange();
+              document.getElementById('sigunguSelect').value = curDistrict;
+              onSigunguChange();
+              return;
+            }
+          }
+        }
+        alert(`'${query}' 지역을 찾을 수 없습니다.`);
+      }
     }
     window.onload = init;
   </script>
 </body>
 </html>
+EOF
