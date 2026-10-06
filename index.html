@@ -376,7 +376,7 @@ footer{color:var(--text-tertiary)}
           <div class="chart-box"><canvas id="chC"></canvas></div>
         </div>
         <div class="card" id="monthlyCard">
-          <div class="card-head"><div><h3 id="mTitle">월별 배출량</h3><div class="sub" id="mSub"></div></div></div>
+          <div class="card-head"><div><h3 id="mTitle">분기별 배출량</h3><div class="sub" id="mSub"></div></div></div>
           <div class="chart-box"><canvas id="chM"></canvas></div>
         </div>
       </div>
@@ -429,7 +429,7 @@ footer{color:var(--text-tertiary)}
           <li>배출량 불확실성(±): 격자별 앙상블 표준편차를 제곱합의 제곱근으로 시도 단위로 합산(격자 오차가 서로 독립이라고 가정). 전국 값은 시도 값의 제곱합 제곱근, 연 값은 네 분기의 평균</li>
           <li>N₂O: 역산 대상이 아니므로 EDGAR 격자 인벤토리(0.1°, 연 단위)만 사용. CO₂ 환산은 GWP₁₀₀ = 265 적용</li>
           <li>2025년: 분기 공개본이 없어 월별 역산 산출물을 분기로 묶은 배출량만 제공(부문·농도·불확실성·생태계 흡수량 없음)</li>
-          <li>월별 배출량: 월별 역산 산출물(2015–2020년, 2025년). 분기 공개본과 처리 버전이 달라 연 합계가 수 % 다를 수 있습니다.</li>
+          <li>장기 분기별 배출량(2015–2020년, 2025년): 월별 역산 산출물을 분기로 묶은 연환산 값. 분기 공개본과 처리 버전이 달라 같은 분기라도 수 % 다를 수 있습니다.</li>
         </ul>
       </div>
       <div>
@@ -537,7 +537,7 @@ const mix=(a,b,t)=>'#'+hex(a).map((v,i)=>Math.round(v+(hex(b)[i]-v)*t).toString(
 function ramp(stops,t){t=Math.max(0,Math.min(1,t));const n=stops.length-1,i=Math.min(n-1,Math.floor(t*n));return mix(stops[i],stops[i+1],t*n-i);}
 const WARM=['#F6F3EB','#CBC8C2','#43474D','#111111'];   // 값 지도: 웜 그레이 → 검정
 const RAMP={co2:WARM,ch4:WARM,n2o:WARM,
-            div:['#0A5FA8','#9DD3FF','#F0ECE4','#FE8A87','#C4110F'],
+            div:['#0B6B2E','#8CD3A3','#F0ECE4','#FE8A87','#C4110F'],   // 음(순흡수)=초록, 0=웜 그레이, 양(순배출)=빨강
             sd:['#F3F5F7','#C3CAD3','#5B6675','#212731']}   // 불확실성 지도: 푸른 기의 회색(값 지도와 구분)   // 불확실성 = 무채색;   // 음(흡수)=파랑, 0=회색, 양(배출)=빨강
 
 /* ───────── 컨트롤 ───────── */
@@ -711,22 +711,28 @@ function drawQuarterly(){
   $('#cTitle').textContent=`분기별 ${GAS[g].sym} 지표 농도`;
   $('#cSub').textContent=`${rName(i)} · 모형 최하층 분기 평균`;
 }
-function drawMonthly(){
+function drawMonthly(){      // 월별 산출물을 분기로 묶은 장기 시계열(연환산)
   const M=D.monthly; $('#monthlyCard').style.display=(!M||isInv(st.gas))?'none':''; if(!M||isInv(st.gas)) return;
-  const g=st.gas,i=st.sido,arr=M[g+'_emis']; let labels=[],data=[],prev=null;
-  M.months.forEach((ym,k)=>{
-    const y=+ym.slice(0,4),m=+ym.slice(4), idx=y*12+m;
-    if(prev!=null&&idx-prev>1){labels.push('');data.push(null);}      // 자료가 없는 기간은 선을 끊음
-    labels.push(`${y}.${String(m).padStart(2,'0')}`); data.push(i>=0?arr[k][i]:arr[k].reduce((a,b)=>a+b,0)); prev=idx;
+  const g=st.gas,i=st.sido,arr=M[g+'_emis'], at=k=>i>=0?arr[k][i]:arr[k].reduce((a,b)=>a+b,0);
+  const dim=(y,m)=>new Date(y,m,0).getDate(), years=[...new Set(M.months.map(m=>+m.slice(0,4)))].sort();
+  let labels=[],data=[],prevY=null;
+  years.forEach(y=>{
+    if(prevY!=null&&y-prevY>1){labels.push('');data.push(null);}      // 자료가 없는 해는 한 칸 띄움
+    for(let q=0;q<4;q++){
+      const ms=[1,2,3].map(n=>3*q+n), ks=ms.map(m=>M.months.indexOf(`${y}${String(m).padStart(2,'0')}`));
+      labels.push(`${y} ${q+1}분기`);
+      if(ks.some(k=>k<0)){data.push(null);continue;}
+      const yd=dim(y,2)===29?366:365, qd=ms.reduce((a,m)=>a+dim(y,m),0);
+      data.push(ks.reduce((a,k)=>a+at(k),0)*yd/qd);                    // 분기 합계 → 연환산(t/yr)
+    }
+    prevY=y;
   });
-  const mx=Math.max(...data.filter(v=>v!=null)), U=g==='co2'?(mx>=1e6?{div:1e6,u:'Mt',dp:2}:{div:1e3,u:'kt',dp:0}):{div:1e3,u:'kt',dp:mx>=1e4?1:2};
-  const unit=`${U.u} ${GAS[g].sym}/월`, o=baseOpts(unit);
-  o.scales.x.ticks.callback=function(v){const l=this.getLabelForValue(v);return l.endsWith('.01')?l.slice(0,4):'';};
+  const U=fluxUnit(g,Math.max(...data.filter(v=>v!=null))), unit=`${U.u} ${GAS[g].sym}/yr`, o=baseOpts(unit);
+  o.scales.x.ticks.callback=function(v){const l=this.getLabelForValue(v);return l.endsWith(' 1분기')?l.slice(0,4):'';};
   o.scales.x.ticks.autoSkip=false; o.scales.y.beginAtZero=true;
-  mk('chM',{type:'line',data:{labels,datasets:[{label:`${GAS[g].sym} 배출량`,data:data.map(v=>v==null?null:v/U.div),borderColor:css('--accent'),backgroundColor:css('--accent'),borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.25,spanGaps:false,dp:U.dp}]},options:o});
-  $('#mTitle').textContent=`월별 ${GAS[g].sym} 배출량`;
-  const ys=[...new Set(M.months.map(m=>m.slice(0,4)))];
-  $('#mSub').textContent=`${rName(i)} · ${ys[0]}–${ys[ys.length-1]}년 (자료가 없는 해는 비워 둠)`;
+  mk('chM',{type:'bar',data:{labels,datasets:[{label:`${GAS[g].sym} 배출량`,data:data.map(v=>v==null?null:v/U.div),backgroundColor:css('--accent'),borderRadius:3,maxBarThickness:14,dp:U.dp+1}]},options:o});
+  $('#mTitle').textContent=`분기별 ${GAS[g].sym} 배출량 (${years[0]}–${years[years.length-1]}년)`;
+  $('#mSub').textContent=`${rName(i)} · 월별 역산 산출물을 분기로 묶은 연환산 값 · 자료가 없는 해는 비워 둠`;
 }
 
 /* ───────── 부문 표 ───────── */
