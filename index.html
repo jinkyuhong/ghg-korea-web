@@ -292,6 +292,10 @@ footer{color:var(--text-tertiary)}
 .grid-2,body[data-gas="n2o"] .grid-2{grid-template-columns:minmax(0,1fr)}
 .chart-box.short{height:230px}
 .grid-main .chart-box,.grid-main .chart-box.short{height:380px}
+select[hidden]{display:none}
+.f select+select{margin-left:0}
+.linkbtn{border:0;background:none;padding:0;margin-left:6px;color:#111;font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.linkbtn:hover{color:var(--red)} .linkbtn[hidden]{display:none}
 .sec-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 32px;align-items:start}
 .sec-cols table td{padding:8px 16px}
 .sec-cols .empty{grid-column:1/-1;text-align:center;color:var(--text-tertiary);padding:28px 16px}
@@ -344,16 +348,17 @@ footer{color:var(--text-tertiary)}
     </div>
 
     <div class="filters">
-      <div class="f"><label for="selSido">지역</label><select id="selSido"></select></div>
+      <div class="f"><label for="selSido">지역</label><select id="selSido" aria-label="시도"></select><select id="selSgg" aria-label="시군구" hidden></select></div>
       <div class="f"><span class="lab">연도</span><div class="seg" id="segYear"></div></div>
       <div class="f" id="fPeriod"><span class="lab">기간</span><div class="seg" id="segPeriod"></div></div>
     </div>
     <div class="alert" id="n2oNote" role="note" hidden></div>
+    <div class="alert" id="sggNote" role="note" hidden></div>
 
     <div class="grid-main">
       <div class="card">
         <div class="card-head">
-          <div><h3 id="mapTitle">시도별 분포</h3><div class="sub">지도에서 시도를 누르면 해당 지역 값이 표시됩니다</div></div>
+          <div><h3 id="mapTitle">시도별 분포</h3><div class="sub"><span id="mapSub"></span> <button type="button" class="linkbtn" id="btnBack" hidden>← 전국 지도로</button></div></div>
           <div class="seg" id="segMetric"></div>
         </div>
         <svg id="map" role="img" aria-label="시도별 단계구분도"></svg>
@@ -391,7 +396,7 @@ footer{color:var(--text-tertiary)}
   </section>
 
   <section id="compare">
-    <h2 class="sec">시도 비교</h2>
+    <h2 class="sec" id="cmpTitle">시도 비교</h2>
     <p class="secdesc" id="cmpDesc"></p>
     <div class="card flush"><div class="tablewrap"><table id="cmp"></table></div></div>
   </section>
@@ -432,7 +437,7 @@ footer{color:var(--text-tertiary)}
           <li>부문 구분: EDGAR 부문별 사전 배출량에 역산 보정 비율(사후/사전)을 적용</li>
           <li>생태계 흡수량: 생태계 순교환량(NEE) = 총일차생산(GEE, 흡수) + 생태계 호흡(RES, 배출). 음수는 흡수, 양수는 호흡이 광합성보다 커서 순배출인 경우</li>
           <li>농도: 모형 최하층의 분기 평균. 농도 불확실성(±)은 앙상블 표준편차의 지역 평균</li>
-          <li>마우나로아 농도: 하와이 마우나로아 관측소의 월평균 CO₂ 농도를 분기 평균한 값으로, 배경대기 수준과 비교하기 위해 CO₂ 지표 농도 그림에 함께 표시</li>
+          <li id="mloNote" hidden>마우나로아 농도: 하와이 마우나로아 관측소의 월평균 CO₂ 농도를 분기 평균한 값으로, 배경대기 수준과 비교하기 위해 CO₂ 지표 농도 그림에 함께 표시</li>
           <li>불확실성 표시: 배출량·농도 모두 값 대비 상대 비율(표준편차 ÷ 값 × 100, %)</li>
           <li>배출량 불확실성(±): 격자별 앙상블 표준편차를 제곱합의 제곱근으로 시도 단위로 합산(격자 오차가 서로 독립이라고 가정). 전국 값은 시도 값의 제곱합 제곱근, 연 값은 네 분기의 평균</li>
           <li>N₂O: 역산 대상이 아니므로 EDGAR 격자 인벤토리(0.1°, 연 단위)만 사용. CO₂ 환산은 GWP₁₀₀ = 265 적용</li>
@@ -444,6 +449,8 @@ footer{color:var(--text-tertiary)}
         <h4>시도별 집계 방법</h4>
         <ul>
           <li>시도 경계: 2018년 기준 시군구 경계를 17개 시도로 병합 (군위군은 경상북도에 포함)</li>
+          <li>시군구 값: 도(道) 지역은 같은 방식으로 시군구(2018년 경계)별로 계산. 도 값은 소속 시군구 값의 합과 같습니다. 다만 격자(9 km, 약 81 km²)보다 작은 시·군·구는 한 격자의 값을 면적 비율로 나눈 것이어서 이웃 지역과 실제 차이가 구분되지 않습니다.</li>
+          <li>특별시·광역시·특별자치시(서울·부산·대구·인천·광주·대전·울산·세종)는 구·군으로 나누지 않고 시 전체 값만 표시</li>
           <li>배출량·생태계 흡수량: 각 격자의 값을 격자 안 육지에 고르게 분포한다고 보고, 시도가 차지하는 육지 면적 비율로 나누어 합산</li>
           <li>농도: 격자와 시도가 겹치는 면적을 가중치로 한 평균</li>
           <li>순배출량 = 인위적 배출량 + 생태계 흡수량 (해양 교환은 제외)</li>
@@ -462,13 +469,14 @@ footer{color:var(--text-tertiary)}
 const $=s=>document.querySelector(s);
 let D,G;
 try{
-  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261006h',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
+  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261006j',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
 }catch(e){
   $('#app').innerHTML='<div class="err"><b>자료를 불러오지 못했습니다.</b><br>data/sido_data.json, data/sido.geojson 파일이 같은 저장소에 있는지 확인해 주세요.<br>(PC에서 미리 볼 때는 폴더에서 <code>python3 -m http.server</code> 실행 후 http://localhost:8000 으로 접속)</div>';
   return;
 }
 
 /* ───────── 상수 ───────── */
+const D0=D, G0=G;       // 전국(시도 17개) 자료. D·G 는 '지금 보고 있는 범위'의 자료로, 시도를 고르면 그 시도의 시군구 자료로 바뀐다(D.pi = 시도 순번)
 const N=D.sido.length, YEARS=D.meta.years.map(String), GWP=28, GWP_N2O=265;
 const W=D.sido.map(s=>s.w), WSUM=W.reduce((a,b)=>a+b,0);
 const GAS={co2:{sym:'CO₂',name:'이산화탄소',concUnit:'ppm',concDp:1},ch4:{sym:'CH₄',name:'메탄',concUnit:'ppb',concDp:0},n2o:{sym:'N₂O',name:'아산화질소'}};
@@ -492,6 +500,7 @@ if(HAS_N2O){
   document.querySelector('.gas-btn[data-gas="n2o"]').hidden=false;
 }
 const isInv=g=>g==='n2o';
+if(D.mlo&&D.mlo.co2) $('#mloNote').hidden=false;
 const HAS_SD=YEARS.every(y=>['co2','ch4'].every(g=>D.quarterly[y][g].emis_sd));   // 예전 자료 파일이면 배출량 불확실성 없음
 // 분기 공개본이 없는 해(예: 2025년): 월별 산출물에서 만든 배출량만 있는 '부분 자료' 연도
 const XQ=D.extra_quarterly||{}, XYEARS=Object.keys(XQ).sort();
@@ -499,27 +508,29 @@ XYEARS.forEach(y=>{D.quarterly[y]={}; ['co2','ch4'].forEach(g=>{if(XQ[y][g+'_emi
 const ALLY=YEARS.concat(XYEARS).sort();
 const has=(g,k,y)=>{k=k==='net'?'nee':(k==='share'||k==='eq')?'emis':k; return !!(D.quarterly[y]&&D.quarterly[y][g]&&D.quarterly[y][g][k]);};
 const yearsOf=g=>ALLY.filter(y=>has(g,'emis',y));
-const st={gas:'co2',sido:-1,year:YEARS[YEARS.length-1],period:'a',metric:'emis',sort:{k:'emis',dir:-1}};
+const st={gas:'co2',prov:-1,sido:-1,year:YEARS[YEARS.length-1],period:'a',metric:'emis',sort:{k:'emis',dir:-1}};
 
 /* ───────── 값 조회 ───────── */
 const isConc=k=>k.startsWith('conc');
-function qv(gas,key,yr,q,i){              // 분기 q, 시도 i(-1=전국)
-  const row=D.quarterly[yr][gas][key][q];
+function qv(gas,key,yr,q,i,ds=D){        // 분기 q, 지역 i(-1 = 보고 있는 범위 전체: 전국 또는 선택한 시도)
+  if(i<0&&ds.pi!=null) return qv(gas,key,yr,q,ds.pi,D0);     // 시군구 화면의 '전체' = 그 시도의 값
+  const row=ds.quarterly[yr][gas][key][q];
   if(i>=0) return row[i];
   if(isConc(key)) return row.reduce((a,v,j)=>a+v*W[j],0)/WSUM;
   if(key==='emis_sd') return Math.sqrt(row.reduce((a,b)=>a+b*b,0));   // 독립 가정: 제곱합의 제곱근
   return row.reduce((a,b)=>a+b,0);
 }
-function val(gas,key,yr,p,i){             // p='a'(연평균) 또는 0..3
-  if(key==='net') return val(gas,'emis',yr,p,i)+val(gas,'nee',yr,p,i);
-  if(p!=='a') return qv(gas,key,yr,p,i);
-  return [0,1,2,3].reduce((a,q)=>a+qv(gas,key,yr,q,i),0)/4;
+function val(gas,key,yr,p,i,ds=D){        // p='a'(연평균) 또는 0..3
+  if(key==='net') return val(gas,'emis',yr,p,i,ds)+val(gas,'nee',yr,p,i,ds);
+  if(p!=='a') return qv(gas,key,yr,p,i,ds);
+  return [0,1,2,3].reduce((a,q)=>a+qv(gas,key,yr,q,i,ds),0)/4;
 }
-function sectors(gas,yr,p,i){
-  const names=D.meta.sectors[gas], qs=p==='a'?[0,1,2,3]:[p], out={};
+function sectors(gas,yr,p,i,ds=D){
+  if(i<0&&ds.pi!=null) return sectors(gas,yr,p,ds.pi,D0);
+  const names=D0.meta.sectors[gas], qs=p==='a'?[0,1,2,3]:[p], out={};
   names.forEach((s,k)=>{
     let v=0;
-    qs.forEach(q=>{const sec=D.quarterly[yr][gas].sec[q]; v+= i>=0?sec[i][k]:sec.reduce((a,r)=>a+r[k],0);});
+    qs.forEach(q=>{const sec=ds.quarterly[yr][gas].sec[q]; v+= i>=0?sec[i][k]:sec.reduce((a,r)=>a+r[k],0);});
     const key=AVIATION.includes(s)?'AIR':s; out[key]=(out[key]||0)+v/qs.length;
   });
   return out;
@@ -527,10 +538,23 @@ function sectors(gas,yr,p,i){
 
 /* ───────── 표기 ───────── */
 const nf=(v,d)=>v.toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d});
-function fluxUnit(gas,maxAbs){ if(gas==='n2o') return {div:1e3,u:'kt',dp:maxAbs>=1e5?0:maxAbs>=1e4?1:2}; return gas==='co2' ? (maxAbs>=1e6?{div:1e6,u:'Mt',dp:1}:{div:1e3,u:'kt',dp:maxAbs>=1e5?0:1}) : {div:1e3,u:'kt',dp:maxAbs>=1e5?0:1}; }
+function fluxUnit(gas,maxAbs){        // 값 크기에 맞춘 단위(시군구처럼 작은 값은 kt·t 로)
+  if(gas==='co2') return maxAbs>=1e6?{div:1e6,u:'Mt',dp:maxAbs>=1e7?1:2}:{div:1e3,u:'kt',dp:maxAbs>=1e5?0:1};
+  if(maxAbs>=1e3) return {div:1e3,u:'kt',dp:maxAbs>=1e5?0:maxAbs>=1e4?1:2};
+  return {div:1,u:'t',dp:maxAbs>=100?0:1};
+}
+const eqFmt=eq=>eq>=1e6?[nf(eq/1e6,eq>=1e7?1:2),'Mt CO₂eq/yr']:[nf(eq/1e3,eq>=1e5?0:1),'kt CO₂eq/yr'];
 function fFlux(v,gas,ref){ const U=fluxUnit(gas,Math.abs(ref??v)); return {t:nf(v/U.div,U.dp),u:`${U.u} ${GAS[gas].sym}/yr`,U}; }
 const pName=p=>p==='a'?'연평균':`${p+1}분기`;
-const rName=i=>i<0?'전국':D.sido[i].name;
+const inProv=()=>D.pi!=null, provName=()=>D0.sido[D.pi].name, provShort=()=>D0.sido[D.pi].short;
+const rName=i=>i<0?(inProv()?provName():'전국'):(inProv()?`${provName()} ${D.sido[i].name}`:D.sido[i].name);
+const unitWord=()=>inProv()?'시군구':'시도';
+const upShort=()=>inProv()?provShort():'전국';      // 선택한 지역이 속한 상위 범위 이름
+// 특별시·광역시·특별자치시는 구·군으로 나누지 않고 시 전체로만 보여 준다(9 km 격자보다 작은 자치구가 대부분)
+const NOSPLIT=new Set(['11','21','22','23','24','25','26','29']);
+const canSplit=i=>!NOSPLIT.has(D0.sido[i].code);
+// 열(지역) 방향 합계 도우미: 시군구 화면의 '전체'는 전국 자료의 그 시도 값을 쓴다
+const pickCol=(rowSub,rowMain,i)=>i>=0?rowSub[i]:(inProv()?rowMain[D.pi]:rowSub.reduce((a,b)=>a+b,0));
 const css=v=>getComputedStyle(document.body).getPropertyValue(v).trim();
 function delta(cur,prev,unitAbs){
   if(prev==null) return '';
@@ -543,7 +567,7 @@ function delta(cur,prev,unitAbs){
 const hex=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
 const mix=(a,b,t)=>'#'+hex(a).map((v,i)=>Math.round(v+(hex(b)[i]-v)*t).toString(16).padStart(2,'0')).join('');
 function ramp(stops,t){t=Math.max(0,Math.min(1,t));const n=stops.length-1,i=Math.min(n-1,Math.floor(t*n));return mix(stops[i],stops[i+1],t*n-i);}
-const WARM=['#F6F3EB','#CBC8C2','#43474D','#111111'];   // 값 지도: 웜 그레이 → 검정
+const WARM=['#E9E4D9','#BEB9B0','#43474D','#111111'];   // 값 지도: 웜 그레이 → 검정
 const RAMP={co2:WARM,ch4:WARM,n2o:WARM,
             div:['#0B6B2E','#8CD3A3','#F0ECE4','#FE8A87','#C4110F'],   // 음(순흡수)=초록, 0=웜 그레이, 양(순배출)=빨강
             sd:['#F3F5F7','#C3CAD3','#5B6675','#212731']}   // 불확실성 지도: 푸른 기의 회색(값 지도와 구분)   // 불확실성 = 무채색;   // 음(흡수)=파랑, 0=회색, 양(배출)=빨강
@@ -553,31 +577,77 @@ function seg(el,opts,cur,on){
   el.innerHTML=opts.map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${String(v)===String(cur)}">${l}</button>`).join('');
   el.onclick=e=>{const b=e.target.closest('button'); if(b) on(b.dataset.v);};
 }
-const sel=$('#selSido');
-sel.innerHTML=`<option value="-1">전국</option>`+D.sido.map((s,i)=>`<option value="${i}">${s.name}</option>`).join('');
-sel.onchange=()=>{st.sido=+sel.value;render();};
+const sel=$('#selSido'), selG=$('#selSgg');
+sel.innerHTML=`<option value="-1">전국</option>`+D0.sido.map((s,i)=>`<option value="${i}">${s.name}</option>`).join('');
+sel.onchange=()=>chooseSido(+sel.value);
+async function chooseSido(i){            // 도 → 시군구 화면으로, 특별시·광역시 → 전국 지도에서 그 시만 선택
+  if(i>=0&&canSplit(i)) return setProv(i);
+  if(inProv()) await setProv(-1);
+  st.sido=i; render();
+}
+selG.onchange=()=>{st.sido=+selG.value;render();};
+$('#btnBack').onclick=()=>setProv(-1);
+// 시도를 고르면 그 시도의 시군구 자료·경계를 불러와 화면 범위를 바꾼다
+const subCache={};
+function prepSub(ds,pi){
+  ds.pi=pi; ds.meta=D0.meta; ds.mlo=D0.mlo;
+  if(HAS_N2O&&ds.n2o) YEARS.forEach(y=>{const t=ds.n2o.total[ds.n2o.years.indexOf(+y)]; ds.quarterly[y].n2o={emis:[t,t,t,t],sec:[0,1,2,3].map(()=>ds.n2o.sec[y])};});
+  const xq=ds.extra_quarterly||{};
+  Object.keys(xq).forEach(y=>{ds.quarterly[y]={}; ['co2','ch4'].forEach(g=>{if(xq[y][g+'_emis'])ds.quarterly[y][g]={emis:xq[y][g+'_emis']};});});
+  return ds;
+}
+let provSeq=0;
+async function setProv(p){
+  const seq=++provSeq;
+  if(p<0){ D=D0; G=G0; }
+  else{
+    const code=D0.sido[p].code;
+    if(!subCache[p]){
+      try{
+        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261006j`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
+        subCache[p]={d:prepSub(d,p),g};
+      }catch(e){ console.error('시군구 자료를 불러오지 못했습니다',e); sel.value=st.prov; return; }
+    }
+    if(seq!==provSeq) return;            // 더 나중에 고른 시도가 있으면 무시
+    D=subCache[p].d; G=subCache[p].g;
+  }
+  st.prov=p; st.sido=-1;
+  selG.innerHTML=p<0?'':`<option value="-1">전체 (${D.sido.length}개 시군구)</option>`+D.sido.map((u,i)=>`<option value="${i}">${u.name}</option>`).join('');
+  buildMap(); render();
+}
 document.querySelectorAll('.gas-btn').forEach(b=>b.onclick=()=>{st.gas=b.dataset.gas; if(st.gas!=='co2'&&st.metric==='nee')st.metric='emis'; if(isInv(st.gas)){st.metric='emis';st.period='a';} if(!has(st.gas,'emis',st.year))st.year=yearsOf(st.gas).slice(-1)[0]; st.sort={k:'emis',dir:-1}; render();});
 
 /* ───────── 지도 ───────── */
 const svg=$('#map'), tip=$('#tip');
-const K=Math.cos(36*Math.PI/180), S=100, LON0=124.55, LAT1=38.72, LON1=131.0, LAT0=33.05;
-svg.setAttribute('viewBox',`0 0 ${((LON1-LON0)*K*S).toFixed(0)} ${((LAT1-LAT0)*S).toFixed(0)}`);
-const P=([x,y])=>`${((x-LON0)*K*S).toFixed(1)},${((LAT1-y)*S).toFixed(1)}`;
-svg.innerHTML=G.features.map((f,i)=>{
-  const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
-  const d=polys.map(p=>p.map(r=>'M'+r.map(P).join('L')+'Z').join('')).join('');
-  return `<path d="${d}" data-i="${D.sido.findIndex(s=>s.code===f.properties.code)}" tabindex="0" role="button" aria-label="${f.properties.name}"></path>`;
-}).join('');
-const paths=[...svg.querySelectorAll('path')];
-function pick(i){st.sido=(st.sido===i?-1:i);render();}
-paths.forEach(p=>{
-  const i=+p.dataset.i;
-  p.onclick=()=>pick(i);
-  p.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(i);}};
-  p.onmousemove=e=>{tip.innerHTML=`<b>${D.sido[i].name}</b><br>${metricLabel()} ${metricText(i)}`;tip.style.opacity=1;
-    tip.style.left=Math.min(e.clientX+14,innerWidth-tip.offsetWidth-8)+'px';tip.style.top=(e.clientY+14)+'px';};
-  p.onmouseleave=()=>tip.style.opacity=0;
-});
+let paths=[];
+function pick(i){ if(!inProv()&&canSplit(i)) return setProv(i); st.sido=(st.sido===i?-1:i); render(); }   // 전국 지도: 도는 시군구 화면으로, 특별시·광역시는 선택 / 시군구 지도: 시군구 선택
+function buildMap(){
+  // 전국은 고정 범위, 시도 화면은 그 시도 경계에 맞춘 범위
+  let LON0=124.55, LAT1=38.72, LON1=131.0, LAT0=33.05;
+  const polysOf=f=>f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+  if(inProv()){
+    LON0=LAT0=1e9; LON1=LAT1=-1e9;
+    G.features.forEach(f=>polysOf(f).forEach(p=>p[0].forEach(([x,y])=>{LON0=Math.min(LON0,x);LON1=Math.max(LON1,x);LAT0=Math.min(LAT0,y);LAT1=Math.max(LAT1,y);})));
+    const px=(LON1-LON0)*.04+.005, py=(LAT1-LAT0)*.04+.005; LON0-=px;LON1+=px;LAT0-=py;LAT1+=py;
+  }
+  const K=Math.cos((LAT0+LAT1)/2*Math.PI/180), S=Math.min(522/((LON1-LON0)*K),567/(LAT1-LAT0));
+  svg.setAttribute('viewBox',`0 0 ${((LON1-LON0)*K*S).toFixed(0)} ${((LAT1-LAT0)*S).toFixed(0)}`);
+  const P=([x,y])=>`${((x-LON0)*K*S).toFixed(1)},${((LAT1-y)*S).toFixed(1)}`;
+  svg.innerHTML=G.features.map(f=>{
+    const d=polysOf(f).map(p=>p.map(r=>'M'+r.map(P).join('L')+'Z').join('')).join('');
+    return `<path d="${d}" data-i="${D.sido.findIndex(u=>u.code===f.properties.code)}" tabindex="0" role="button" aria-label="${f.properties.name}"></path>`;
+  }).join('');
+  paths=[...svg.querySelectorAll('path')]; tip.style.opacity=0;
+  paths.forEach(p=>{
+    const i=+p.dataset.i;
+    p.onclick=()=>pick(i);
+    p.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(i);}};
+    p.onmousemove=e=>{tip.innerHTML=`<b>${D.sido[i].name}</b><br>${metricLabel()} ${metricText(i)}`;tip.style.opacity=1;
+      tip.style.left=Math.min(e.clientX+14,innerWidth-tip.offsetWidth-8)+'px';tip.style.top=(e.clientY+14)+'px';};
+    p.onmouseleave=()=>tip.style.opacity=0;
+  });
+}
+buildMap();
 const METRICS={emis:'배출량',nee:'생태계 흡수량',conc:'농도',emis_sd:'배출량 불확실성',conc_sd:'농도 불확실성'};
 const metricLabel=()=>({emis:`${GAS[st.gas].sym} 배출량`,nee:'생태계 흡수량',conc:`${GAS[st.gas].sym} 농도`,emis_sd:`${GAS[st.gas].sym} 배출량 불확실성`,conc_sd:`${GAS[st.gas].sym} 농도 불확실성`})[st.metric];
 const isSd=m=>m.endsWith('_sd');
@@ -605,7 +675,9 @@ function drawMap(){
   $('#cbMin').textContent=t(lo); $('#cbMax').textContent=t(hi); $('#cbMid').textContent=m==='nee'?'0':t((lo+hi)/2);
   const unit=isSd(m)?'%':isConc(m)?GAS[g].concUnit:fFlux(hi,g,hi).u;
   $('#cbCap').textContent=`${metricLabel()} (${unit})`+(m==='nee'?' · 음수 = 순흡수, 양수 = 순배출':m==='emis_sd'?' · 배출량 대비 상대 비율':m==='conc_sd'?' · 농도 대비 상대 비율':'');
-  $('#mapTitle').textContent=`시도별 ${metricLabel()} · ${st.year}년`+(isInv(g)?'':' '+pName(st.period));
+  $('#mapTitle').textContent=(inProv()?`${provName()} 시군구별`:'시도별')+` ${metricLabel()} · ${st.year}년`+(isInv(g)?'':' '+pName(st.period));
+  $('#mapSub').textContent=inProv()?'시군구를 누르면 해당 지역 값이 표시됩니다.':'시도를 누르면 값이 표시됩니다. 도는 시군구 지도로 들어갑니다.';
+  $('#btnBack').hidden=!inProv();
 }
 
 /* ───────── KPI ───────── */
@@ -614,7 +686,10 @@ function drawKpis(){
   const g=st.gas,i=st.sido,y=st.year,p=st.period, py=yearsOf(g)[yearsOf(g).indexOf(y)-1];
   const V=k=>val(g,k,y,p,i), PV=k=>py?val(g,k,py,p,i):null;
   const yoy=k=>py?`${py}년 대비 ${delta(V(k),PV(k))}`:'';
-  const share=k=>i>=0?`전국의 ${nf(V(k)/val(g,k,y,p,-1)*100,1)}%`:'17개 시도 합계';
+  // 비중: 시군구 → 소속 시도 대비, 시도 → 전국 대비, 전국 → 합계 표시
+  const sharePct=k=>i>=0?V(k)/val(g,k,y,p,-1)*100:(inProv()?V(k)/val(g,k,y,p,-1,D0)*100:100);
+  const share=k=>i>=0?`${upShort()}의 ${nf(sharePct(k),1)}%`:(inProv()?`전국의 ${nf(sharePct(k),1)}%`:'17개 시도 합계');
+  const shareTile=()=>kpi(i>=0?`${upShort()} 대비 비중`:'전국 대비 비중',(i>=0||inProv())?nf(sharePct('emis'),1):'100','%',i>=0?`${upShort()} 배출량 중`:(inProv()?'전국 배출량 중':'17개 시도 합계'));
   const join=(...a)=>a.filter(Boolean).join(' · ');
   const cd=GAS[g].concDp, cu=GAS[g].concUnit;
   const partial=!has(g,'conc',y)&&!isInv(g);
@@ -625,8 +700,8 @@ function drawKpis(){
     const e=fFlux(V('emis'),g), eq=V('emis')*GWP_N2O, sv=sectors(g,y,p,i), top=Object.entries(sv).sort((a,b)=>b[1]-a[1])[0];
     const lab=k=>typeof SECTOR[k]==='object'?SECTOR[k][g]:(SECTOR[k]||k);
     h+=kpi('아산화질소 배출량',e.t,e.u,yoy('emis'),true);
-    h+=kpi('CO₂ 환산 배출량',nf(eq/1e6,eq>=1e7?1:2),'Mt CO₂eq/yr','GWP₁₀₀ = 265 적용');
-    h+=kpi('전국 대비 비중',i>=0?nf(V('emis')/val(g,'emis',y,p,-1)*100,1):'100','%',i>=0?'전국 배출량 중':'17개 시도 합계');
+    h+=kpi('CO₂ 환산 배출량',...eqFmt(eq),'GWP₁₀₀ = 265 적용');
+    h+=shareTile();
     h+=kpi('최대 배출 부문',nf(top[1]/V('emis')*100,0),'%',lab(top[0]));
     $('#kpis').innerHTML=h; $('#regName').textContent=rName(i);
     $('#regCtx').textContent=`${GAS[g].name}(${GAS[g].sym}) · ${y}년 · EDGAR 인벤토리`;
@@ -635,8 +710,8 @@ function drawKpis(){
   if(partial){       // 배출량만 있는 연도
     const e=fFlux(V('emis'),g), eq=V('emis')*GWP, none=(k,why)=>kpi(k,'–','',why);
     h+=kpi(g==='co2'?'인위적 배출량':'메탄 배출량',e.t,e.u,join(yoy('emis'),'월별 산출물 기반'),true);
-    if(g==='ch4') h+=kpi('CO₂ 환산 배출량',nf(eq/1e6,eq>=1e7?1:2),'Mt CO₂eq/yr','GWP₁₀₀ = 28 적용');
-    h+=kpi('전국 대비 비중',i>=0?nf(V('emis')/val(g,'emis',y,p,-1)*100,1):'100','%',i>=0?'전국 배출량 중':'17개 시도 합계');
+    if(g==='ch4') h+=kpi('CO₂ 환산 배출량',...eqFmt(eq),'GWP₁₀₀ = 28 적용');
+    h+=shareTile();
     if(g==='co2') h+=none('생태계 흡수량',`${y}년 자료 준비 중`);
     h+=none('지표 농도',`${y}년 자료 없음`);
     $('#kpis').innerHTML=h; $('#regName').textContent=rName(i);
@@ -653,8 +728,8 @@ function drawKpis(){
   }else{
     const e=fFlux(V('emis'),g), eq=V('emis')*GWP;
     h+=kpi('메탄 배출량',e.t,e.u,join(yoy('emis'),sdSub()),true);
-    h+=kpi('CO₂ 환산 배출량',nf(eq/1e6,eq>=1e7?1:2),'Mt CO₂eq/yr','GWP₁₀₀ = 28 적용');
-    h+=kpi('전국 대비 비중',i>=0?nf(V('emis')/val(g,'emis',y,p,-1)*100,1):'100','%',i>=0?'전국 배출량 중':'17개 시도 합계');
+    h+=kpi('CO₂ 환산 배출량',...eqFmt(eq),'GWP₁₀₀ = 28 적용');
+    h+=shareTile();
     h+=kpi('지표 농도',nf(V('conc'),cd),cu,concSub);
   }
   $('#kpis').innerHTML=h;
@@ -673,13 +748,13 @@ function baseOpts(unit,extra={}){
       tooltip:{backgroundColor:'#111111',titleColor:'#fff',bodyColor:'#fff',padding:{x:10,y:8},cornerRadius:6,
         callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y==null?'–':nf(c.parsed.y,c.dataset.dp??1)} ${unit}`}}},
     scales:{x:{grid:{display:false},border:{color:css('--line-strong')},ticks:{color:ink2,font:{size:12},maxRotation:0,autoSkipPadding:14}},
-      y:{grid:{color:grid},border:{display:false},ticks:{color:ink2,font:{size:12},callback:v=>nf(v,0)},title:{display:true,text:unit,color:css('--ink-3'),font:{size:12}}}}},extra);
+      y:{grid:{color:grid},border:{display:false},ticks:{color:ink2,font:{size:12},callback:function(v){const m=Math.max(Math.abs(this.max),Math.abs(this.min));return nf(v,m<1?2:m<10?1:0);}},title:{display:true,text:unit,color:css('--ink-3'),font:{size:12}}}}},extra);
 }
 Chart.defaults.font.family=getComputedStyle(document.body).fontFamily;
 const QL=YEARS.flatMap(y=>[0,1,2,3].map(q=>`${y} ${q+1}분기`));
 const QK=YEARS.flatMap(y=>[0,1,2,3].map(q=>[y,q]));
 function drawAnnualInv(){
-  const g=st.gas,i=st.sido,A=D[g], v=A.years.map((_,k)=>i>=0?A.total[k][i]:A.total[k].reduce((a,b)=>a+b,0));
+  const g=st.gas,i=st.sido,A=D[g], v=A.years.map((_,k)=>pickCol(A.total[k],D0[g].total[k],i));
   const U=fluxUnit(g,Math.max(...v)), unit=`${U.u} ${GAS[g].sym}/yr`;
   mk('chQ',{type:'bar',data:{labels:A.years.map(String),datasets:[{label:`${GAS[g].sym} 배출량`,data:v.map(x=>x/U.div),
     backgroundColor:A.years.map(y=>String(y)===st.year?css('--accent'):css('--accent-line')),borderRadius:4,maxBarThickness:28,dp:U.dp+1}]},options:baseOpts(unit)});
@@ -693,9 +768,9 @@ function drawQuarterly(){
   if(isInv(st.gas)) return drawAnnualInv();
   const g=st.gas,i=st.sido, e=QK.map(([y,q])=>qv(g,'emis',y,q,i));
   // 분기 공개본이 없는 해(예: 2025년)는 월별 산출물로 만든 배출량 막대만 덧붙임
-  const X=D.extra_quarterly||{}, xy=Object.keys(X).filter(y=>X[y][g+'_emis']).sort(), nBase=e.length;
+  const xy=XYEARS.filter(y=>has(g,'emis',y)), nBase=e.length;
   const EL=QL.concat(xy.flatMap(y=>[1,2,3,4].map(q=>`${y} ${q}분기`)));
-  xy.forEach(y=>X[y][g+'_emis'].forEach(r=>e.push(i>=0?r[i]:r.reduce((a,b)=>a+b,0))));
+  xy.forEach(y=>[0,1,2,3].forEach(q=>e.push(qv(g,'emis',y,q,i))));
   const barCol=(solid,light)=>e.map((_,k)=>k<nBase?solid:light);
   const xNote=xy.length?` · 테두리만 있는 막대(${xy.join('·')}년)는 월별 산출물 기반`:'';
   const xBorder={borderColor:'#111111',borderWidth:e.map((_,k)=>k<nBase?0:1.5)};
@@ -715,7 +790,8 @@ function drawQuarterly(){
   $('#qSub').textContent=`${rName(i)} · 분기 평균 배출 속도의 연환산 값`+xNote;
   const c=QK.map(([y,q])=>qv(g,'conc',y,q,i)), nat=QK.map(([y,q])=>qv(g,'conc',y,q,-1)), cu=GAS[g].concUnit;
   const ds=[{label:rName(i),data:c,borderColor:css('--accent'),backgroundColor:css('--accent'),borderWidth:2,pointRadius:4,pointBorderColor:css('--surface'),pointBorderWidth:2,dp:GAS[g].concDp}];
-  if(i>=0) ds.push({label:'전국 평균',data:nat,borderColor:css('--ink-3'),backgroundColor:css('--ink-3'),borderWidth:2,pointRadius:0,dp:GAS[g].concDp});
+  if(i<0&&inProv()) ds.push({label:'전국 평균',data:QK.map(([y,q])=>qv(g,'conc',y,q,-1,D0)),borderColor:css('--ink-3'),backgroundColor:css('--ink-3'),borderWidth:2,pointRadius:0,dp:GAS[g].concDp});
+  if(i>=0) ds.push({label:(inProv()?provShort():'전국')+' 평균',data:nat,borderColor:css('--ink-3'),backgroundColor:css('--ink-3'),borderWidth:2,pointRadius:0,dp:GAS[g].concDp});
   // 마우나로아(배경대기) 농도: 자료 파일에 있을 때 CO₂ 그림에만 함께 표시
   const ML=g==='co2'&&D.mlo&&D.mlo.co2, mlo=ML?QK.map(([y,q])=>ML[y]?ML[y][q]:null):null, hasMlo=!!(mlo&&mlo.some(v=>v!=null));
   if(hasMlo) ds.push({label:'마우나로아 (배경대기)',data:mlo,borderColor:css('--red'),backgroundColor:css('--red'),borderWidth:2,borderDash:[6,4],pointRadius:3,pointBorderColor:css('--surface'),pointBorderWidth:1.5,dp:2});
@@ -726,7 +802,7 @@ function drawQuarterly(){
 }
 function drawMonthly(){      // 월별 산출물을 분기로 묶은 장기 시계열(연환산)
   const M=D.monthly; $('#monthlyCard').style.display=(!M||isInv(st.gas))?'none':''; if(!M||isInv(st.gas)) return;
-  const g=st.gas,i=st.sido,arr=M[g+'_emis'], at=k=>i>=0?arr[k][i]:arr[k].reduce((a,b)=>a+b,0);
+  const g=st.gas,i=st.sido,arr=M[g+'_emis'], at=k=>pickCol(arr[k],D0.monthly[g+'_emis'][k],i);
   const dim=(y,m)=>new Date(y,m,0).getDate(), years=[...new Set(M.months.map(m=>+m.slice(0,4)))].sort();
   let labels=[],data=[],prevY=null;
   years.forEach(y=>{
@@ -781,35 +857,39 @@ function drawSectors(){
 function drawCompare(){
   const g=st.gas,y=st.year,p=st.period, cd=GAS[g].concDp;
   const nat=k=>val(g,k,y,p,-1), U=fluxUnit(g,nat('emis'));
-  const cols=isInv(g) ? [['emis','배출량 (kt/yr)'],['share','전국 비중'],['eq','CO₂ 환산 (Mt CO₂eq/yr)']] : g==='co2'
-    ? [['emis',`배출량 (${U.u}/yr)`],['share','전국 비중'],['nee',`생태계 흡수량 (${U.u}/yr)`],['net',`순배출량 (${U.u}/yr)`],['emis_sd','배출량 불확실성 (± %)'],['conc','농도 (ppm)'],['conc_sd','농도 불확실성 (± %)']]
-    : [['emis','배출량 (kt/yr)'],['share','전국 비중'],['eq','CO₂ 환산 (Mt CO₂eq/yr)'],['emis_sd','배출량 불확실성 (± %)'],['conc','농도 (ppb)'],['conc_sd','농도 불확실성 (± %)']];
+  const EQU=nat('emis')*(isInv(g)?GWP_N2O:GWP)>=1e6?{div:1e6,u:'Mt'}:{div:1e3,u:'kt'};
+  const cols=isInv(g) ? [['emis',`배출량 (${U.u}/yr)`],['share',inProv()?`${provShort()} 내 비중`:'전국 비중'],['eq',`CO₂ 환산 (${EQU.u} CO₂eq/yr)`]] : g==='co2'
+    ? [['emis',`배출량 (${U.u}/yr)`],['share',inProv()?`${provShort()} 내 비중`:'전국 비중'],['nee',`생태계 흡수량 (${U.u}/yr)`],['net',`순배출량 (${U.u}/yr)`],['emis_sd','배출량 불확실성 (± %)'],['conc','농도 (ppm)'],['conc_sd','농도 불확실성 (± %)']]
+    : [['emis',`배출량 (${U.u}/yr)`],['share',inProv()?`${provShort()} 내 비중`:'전국 비중'],['eq',`CO₂ 환산 (${EQU.u} CO₂eq/yr)`],['emis_sd','배출량 불확실성 (± %)'],['conc','농도 (ppb)'],['conc_sd','농도 불확실성 (± %)']];
   if(!HAS_SD&&!isInv(g)) cols.splice(cols.findIndex(c=>c[0]==='emis_sd'),1);
   for(let c=cols.length-1;c>=0;c--) if(!has(g,cols[c][0],y)) cols.splice(c,1);   // 해당 연도에 없는 항목은 열에서 제외
   if(!cols.some(c=>c[0]===st.sort.k)&&st.sort.k!=='name') st.sort={k:'emis',dir:-1};
   const gwp=isInv(g)?GWP_N2O:GWP;
   const get=(k,i)=>k==='share'?val(g,'emis',y,p,i)/nat('emis')*100:k==='eq'?val(g,'emis',y,p,i)*gwp:isSd(k)?rel(g,k,y,p,i):val(g,k,y,p,i);
-  const fmt=(k,v)=>k==='share'?nf(v,1)+'%':isSd(k)?nf(v,1):isConc(k)?nf(v,cd):k==='eq'?nf(v/1e6,2):nf(v/U.div,g==='co2'||isInv(g)?2:1);
+  const fmt=(k,v)=>k==='share'?nf(v,1)+'%':isSd(k)?nf(v,1):isConc(k)?nf(v,cd):k==='eq'?nf(v/EQU.div,2):nf(v/U.div,Math.max(U.dp,g==='ch4'?1:2));
   const rows=D.sido.map((s,i)=>({i,name:s.name,v:Object.fromEntries(cols.map(([k])=>[k,get(k,i)]))}));
   const {k:sk,dir}=st.sort; rows.sort((a,b)=>sk==='name'?dir*a.name.localeCompare(b.name,'ko'):dir*(a.v[sk]-b.v[sk]));
   const mxShare=Math.max(...rows.map(r=>r.v.share));
   const th=(k,l)=>`<th data-k="${k}" ${st.sort.k===k?`aria-sort="${dir>0?'ascending':'descending'}"`:''}>${l}</th>`;
-  let h=`<thead><tr>${th('name','시도')}${cols.map(([k,l])=>th(k,l)).join('')}</tr></thead><tbody>`;
+  let h=`<thead><tr>${th('name',unitWord())}${cols.map(([k,l])=>th(k,l)).join('')}</tr></thead><tbody>`;
   rows.forEach(r=>{h+=`<tr data-i="${r.i}" class="${r.i===st.sido?'sel':''}"><td>${r.name}</td>`+cols.map(([k])=>k==='share'
     ?`<td><div class="sharecell" style="justify-content:flex-end"><div class="track" style="max-width:110px;justify-content:flex-end"><span class="sharebar" style="width:${(r.v.share/mxShare*100).toFixed(1)}%;border-radius:4px 0 0 4px;margin:0 8px 0 0"></span></div><span class="num" style="min-width:48px">${fmt(k,r.v[k])}</span></div></td>`
     :`<td class="num">${fmt(k,r.v[k])}</td>`).join('')+'</tr>';});
-  h+=`</tbody><tfoot><tr><td>전국</td>`+cols.map(([k])=>`<td class="num">${k==='share'?'100.0%':fmt(k,k==='eq'?nat('emis')*gwp:isSd(k)?rel(g,k,y,p,-1):nat(k))}</td>`).join('')+'</tr></tfoot>';
+  h+=`</tbody><tfoot><tr><td>${rName(-1)}</td>`+cols.map(([k])=>`<td class="num">${k==='share'?'100.0%':fmt(k,k==='eq'?nat('emis')*gwp:isSd(k)?rel(g,k,y,p,-1):nat(k))}</td>`).join('')+'</tr></tfoot>';
   const T=$('#cmp'); T.innerHTML=h;
   T.querySelectorAll('th').forEach(t=>t.onclick=()=>{const k=t.dataset.k;st.sort=st.sort.k===k?{k,dir:-st.sort.dir}:{k,dir:k==='name'?1:-1};drawCompare();});
   T.querySelectorAll('tbody tr').forEach(t=>t.onclick=()=>{pick(+t.dataset.i);});
-  $('#cmpDesc').textContent=`17개 시도의 ${GAS[g].name}(${GAS[g].sym}) 값입니다 · ${y}년${isInv(g)?' (EDGAR 인벤토리)':' '+pName(p)}. 열 제목을 누르면 정렬되고, 행을 누르면 해당 시도가 선택됩니다.`;
+  $('#cmpTitle').textContent=inProv()?`시군구 비교 · ${provName()}`:'시도 비교';
+  $('#cmpDesc').textContent=(inProv()?`${provName()} ${D.sido.length}개 시군구`:'17개 시도')+`의 ${GAS[g].name}(${GAS[g].sym}) 값입니다 · ${y}년${isInv(g)?' (EDGAR 인벤토리)':' '+pName(p)}. 열 제목을 누르면 정렬되고, 행을 누르면 `+(inProv()?'해당 시군구가 선택됩니다.':'해당 시도가 선택됩니다(도는 시군구 화면으로 들어갑니다).');
 }
 
 /* ───────── 렌더 ───────── */
 function render(){
   document.body.dataset.gas=st.gas;
   document.querySelectorAll('.gas-btn').forEach(b=>b.setAttribute('aria-pressed',b.dataset.gas===st.gas));
-  sel.value=st.sido;
+  sel.value=inProv()?st.prov:st.sido; selG.hidden=!inProv(); if(inProv()) selG.value=st.sido;
+  const sn=$('#sggNote'); sn.hidden=!inProv();
+  if(inProv()) sn.textContent='시군구 값은 9 km 격자(약 81 km²)의 값을 면적 비율로 나눈 추정치입니다. 격자보다 작은 시·군·구는 이웃 지역과 실제 차이가 구분되지 않으니 참고용으로 보아 주세요.';
   seg($('#segYear'),yearsOf(st.gas).map(y=>[y,y+'년']),st.year,v=>{st.year=v;render();});
   if(!has(st.gas,st.metric,st.year)) st.metric='emis';
   seg($('#segPeriod'),[['a','연평균'],[0,'1분기'],[1,'2분기'],[2,'3분기'],[3,'4분기']],st.period,v=>{st.period=v==='a'?'a':+v;render();});
