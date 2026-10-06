@@ -288,6 +288,14 @@ tr.grp td,#cmp tfoot td{background:var(--bg-subtle)}
 .refs a{color:#111;text-decoration:underline;text-underline-offset:3px}
 .refs a:hover{color:var(--red)}
 footer{color:var(--text-tertiary)}
+/* 배치: 지도 옆에 요약·분기 그래프·농도 그래프, 아래에 부문 표(2단)와 장기 분기 그래프를 전체 폭으로 */
+.grid-2,body[data-gas="n2o"] .grid-2{grid-template-columns:minmax(0,1fr)}
+.chart-box.short{height:230px}
+.grid-main .chart-box,.grid-main .chart-box.short{height:380px}
+.sec-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 32px;align-items:start}
+.sec-cols table td{padding:8px 16px}
+.sec-cols .empty{grid-column:1/-1;text-align:center;color:var(--text-tertiary);padding:28px 16px}
+@media (max-width:980px){.sec-cols{grid-template-columns:minmax(0,1fr);gap:16px 0}}
 @media (max-width:640px){
   .wrap{padding:0 16px}
   .top-in{height:56px} .brand b{font-size:15px} .brand::before{display:block;width:10px;height:10px}
@@ -297,6 +305,7 @@ footer{color:var(--text-tertiary)}
   .card{padding:18px} .card-head{margin:-18px -18px 14px;padding:16px 18px 10px} .card h3{font-size:17px}
   .card.flush{padding:0}
   .kpis{gap:10px} .kpi{padding:14px} .kpi .v{font-size:21px}
+  .grid-main .chart-box,.grid-main .chart-box.short{height:270px}
   .region-head h1{font-size:22px} h2.sec{font-size:20px}
   .refs li{padding:14px}
 }
@@ -358,9 +367,13 @@ footer{color:var(--text-tertiary)}
       <div class="stack">
         <div class="region-head"><h1 id="regName">전국</h1><span class="ctx" id="regCtx"></span></div>
         <div class="kpis" id="kpis"></div>
-        <div class="card">
+        <div class="card" id="qCard">
           <div class="card-head"><div><h3 id="qTitle">분기별 배출량</h3><div class="sub" id="qSub"></div></div></div>
           <div class="chart-box"><canvas id="chQ"></canvas></div>
+        </div>
+        <div class="card" id="concCard">
+          <div class="card-head"><div><h3 id="cTitle">분기별 지표 농도</h3><div class="sub" id="cSub"></div></div></div>
+          <div class="chart-box short"><canvas id="chC"></canvas></div>
         </div>
       </div>
     </div>
@@ -368,17 +381,11 @@ footer{color:var(--text-tertiary)}
     <div class="grid-2">
       <div class="card">
         <div class="card-head"><div><h3 id="secTitle">부문별 배출량</h3><div class="sub" id="secSub"></div></div></div>
-        <div class="tablewrap"><table id="secTable"></table></div>
+        <div class="sec-cols" id="secCols"></div>
       </div>
-      <div class="stack">
-        <div class="card" id="concCard">
-          <div class="card-head"><div><h3 id="cTitle">분기별 지표 농도</h3><div class="sub" id="cSub"></div></div></div>
-          <div class="chart-box"><canvas id="chC"></canvas></div>
-        </div>
-        <div class="card" id="monthlyCard">
-          <div class="card-head"><div><h3 id="mTitle">분기별 배출량</h3><div class="sub" id="mSub"></div></div></div>
-          <div class="chart-box"><canvas id="chM"></canvas></div>
-        </div>
+      <div class="card" id="monthlyCard">
+        <div class="card-head"><div><h3 id="mTitle">분기별 배출량</h3><div class="sub" id="mSub"></div></div></div>
+        <div class="chart-box short"><canvas id="chM"></canvas></div>
       </div>
     </div>
   </section>
@@ -425,6 +432,7 @@ footer{color:var(--text-tertiary)}
           <li>부문 구분: EDGAR 부문별 사전 배출량에 역산 보정 비율(사후/사전)을 적용</li>
           <li>생태계 흡수량: 생태계 순교환량(NEE) = 총일차생산(GEE, 흡수) + 생태계 호흡(RES, 배출). 음수는 흡수, 양수는 호흡이 광합성보다 커서 순배출인 경우</li>
           <li>농도: 모형 최하층의 분기 평균. 농도 불확실성(±)은 앙상블 표준편차의 지역 평균</li>
+          <li>마우나로아 농도: 하와이 마우나로아 관측소의 월평균 CO₂ 농도를 분기 평균한 값으로, 배경대기 수준과 비교하기 위해 CO₂ 지표 농도 그림에 함께 표시</li>
           <li>불확실성 표시: 배출량·농도 모두 값 대비 상대 비율(표준편차 ÷ 값 × 100, %)</li>
           <li>배출량 불확실성(±): 격자별 앙상블 표준편차를 제곱합의 제곱근으로 시도 단위로 합산(격자 오차가 서로 독립이라고 가정). 전국 값은 시도 값의 제곱합 제곱근, 연 값은 네 분기의 평균</li>
           <li>N₂O: 역산 대상이 아니므로 EDGAR 격자 인벤토리(0.1°, 연 단위)만 사용. CO₂ 환산은 GWP₁₀₀ = 265 적용</li>
@@ -454,7 +462,7 @@ footer{color:var(--text-tertiary)}
 const $=s=>document.querySelector(s);
 let D,G;
 try{
-  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261006g',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
+  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261006h',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
 }catch(e){
   $('#app').innerHTML='<div class="err"><b>자료를 불러오지 못했습니다.</b><br>data/sido_data.json, data/sido.geojson 파일이 같은 저장소에 있는지 확인해 주세요.<br>(PC에서 미리 볼 때는 폴더에서 <code>python3 -m http.server</code> 실행 후 http://localhost:8000 으로 접속)</div>';
   return;
@@ -679,7 +687,9 @@ function drawAnnualInv(){
   $('#qSub').textContent=`${rName(i)} · ${A.years[0]}–${A.years[A.years.length-1]}년 · 진한 막대가 선택한 연도`;
 }
 function drawQuarterly(){
-  $('#concCard').hidden=isInv(st.gas);
+  // 지도 지표에 맞춰 한 그림만 표시: 농도·농도 불확실성 → 지표 농도 그림, 그 밖(배출량·흡수량·배출량 불확실성) → 배출량 그림
+  const showConc=!isInv(st.gas)&&isConc(st.metric);
+  $('#concCard').hidden=!showConc; $('#qCard').hidden=showConc;
   if(isInv(st.gas)) return drawAnnualInv();
   const g=st.gas,i=st.sido, e=QK.map(([y,q])=>qv(g,'emis',y,q,i));
   // 분기 공개본이 없는 해(예: 2025년)는 월별 산출물로 만든 배출량 막대만 덧붙임
@@ -706,10 +716,13 @@ function drawQuarterly(){
   const c=QK.map(([y,q])=>qv(g,'conc',y,q,i)), nat=QK.map(([y,q])=>qv(g,'conc',y,q,-1)), cu=GAS[g].concUnit;
   const ds=[{label:rName(i),data:c,borderColor:css('--accent'),backgroundColor:css('--accent'),borderWidth:2,pointRadius:4,pointBorderColor:css('--surface'),pointBorderWidth:2,dp:GAS[g].concDp}];
   if(i>=0) ds.push({label:'전국 평균',data:nat,borderColor:css('--ink-3'),backgroundColor:css('--ink-3'),borderWidth:2,pointRadius:0,dp:GAS[g].concDp});
-  const oc=baseOpts(cu); oc.plugins.legend.display=i>=0; oc.scales.y.ticks.callback=v=>nf(v,0);
+  // 마우나로아(배경대기) 농도: 자료 파일에 있을 때 CO₂ 그림에만 함께 표시
+  const ML=g==='co2'&&D.mlo&&D.mlo.co2, mlo=ML?QK.map(([y,q])=>ML[y]?ML[y][q]:null):null, hasMlo=!!(mlo&&mlo.some(v=>v!=null));
+  if(hasMlo) ds.push({label:'마우나로아 (배경대기)',data:mlo,borderColor:css('--red'),backgroundColor:css('--red'),borderWidth:2,borderDash:[6,4],pointRadius:3,pointBorderColor:css('--surface'),pointBorderWidth:1.5,dp:2});
+  const oc=baseOpts(cu); oc.plugins.legend.display=ds.length>1; oc.scales.y.ticks.callback=v=>nf(v,0);
   mk('chC',{type:'line',data:{labels:QL,datasets:ds},options:oc});
   $('#cTitle').textContent=`분기별 ${GAS[g].sym} 지표 농도`;
-  $('#cSub').textContent=`${rName(i)} · 모형 최하층 분기 평균`;
+  $('#cSub').textContent=`${rName(i)} · 모형 최하층 분기 평균`+(hasMlo?` · 마우나로아는 관측 월평균의 분기 평균(${D.mlo.source})`:'');
 }
 function drawMonthly(){      // 월별 산출물을 분기로 묶은 장기 시계열(연환산)
   const M=D.monthly; $('#monthlyCard').style.display=(!M||isInv(st.gas))?'none':''; if(!M||isInv(st.gas)) return;
@@ -737,8 +750,9 @@ function drawMonthly(){      // 월별 산출물을 분기로 묶은 장기 시�
 
 /* ───────── 부문 표 ───────── */
 function drawSectors(){
+  const box=$('#secCols');
   if(!has(st.gas,'sec',st.year)){
-    $('#secTable').innerHTML=`<tbody><tr><td style="text-align:center;color:var(--text-tertiary);padding:32px 16px;white-space:normal">${st.year}년은 부문별 배출량 자료가 없습니다. 부문 구분은 ${YEARS.join('·')}년에서 볼 수 있습니다.</td></tr></tbody>`;
+    box.innerHTML=`<div class="empty">${st.year}년은 부문별 배출량 자료가 없습니다. 부문 구분은 ${YEARS.join('·')}년에서 볼 수 있습니다.</div>`;
     $('#secTitle').textContent=`부문별 ${GAS[st.gas].sym} 배출량`; $('#secSub').textContent=`${rName(st.sido)} · ${st.year}년`;
     return;
   }
@@ -746,13 +760,19 @@ function drawSectors(){
   const lab=k=>typeof SECTOR[k]==='object'?SECTOR[k][g]:(SECTOR[k]||k);
   const pct=v=>tot?v/tot*100:0;
   const row=(cls,name,v)=>`<tr class="${cls}"><td>${name}</td><td class="num">${nf(v/U.div,v/U.div<10?2:U.dp)}</td><td><div class="sharecell"><div class="track"><span class="sharebar" style="width:${pct(v).toFixed(1)}%"></span></div><span class="num">${nf(pct(v),1)}%</span></div></td></tr>`;
-  let h=`<thead><tr><th>부문</th><th>배출량 (${U.u} ${GAS[g].sym}/yr)</th><th style="text-align:left">비중</th></tr></thead><tbody>`;
+  const head=`<thead><tr><th>부문</th><th>배출량 (${U.u} ${GAS[g].sym}/yr)</th><th style="text-align:left">비중</th></tr></thead>`;
+  const blocks=[];            // 대분류별 행 묶음
   GROUPS.forEach(([gn,keys])=>{
     const items=keys.filter(k=>k in sv&&sv[k]>0).map(k=>[k,sv[k]]).sort((a,b)=>b[1]-a[1]);
-    const gs=items.reduce((a,b)=>a+b[1],0); if(!items.length) return;
-    h+=row('grp',gn,gs); items.forEach(([k,v])=>{ if(pct(v)>=0.05) h+=row('item',lab(k),v); });
+    if(!items.length) return;
+    const rows=[row('grp',gn,items.reduce((a,b)=>a+b[1],0))]; items.forEach(([k,v])=>{ if(pct(v)>=0.05) rows.push(row('item',lab(k),v)); });
+    blocks.push(rows);
   });
-  $('#secTable').innerHTML=h+'</tbody>';
+  // 두 단의 행 수가 비슷해지도록 대분류 단위로 나눔(순서 유지)
+  const total=blocks.reduce((a,b)=>a+b.length,0); let n=0,cut=blocks.length;
+  for(let k=0;k<blocks.length;k++){ if(n+blocks[k].length/2>=total/2){cut=Math.max(1,k);break;} n+=blocks[k].length; }
+  const cols=[blocks.slice(0,cut),blocks.slice(cut)].filter(c=>c.length);
+  box.innerHTML=cols.map(c=>`<div class="tablewrap"><table>${head}<tbody>${c.flat().join('')}</tbody></table></div>`).join('');
   $('#secTitle').textContent=`부문별 ${GAS[g].sym} 배출량`;
   $('#secSub').textContent=`${rName(st.sido)} · ${st.year}년${isInv(g)?'':' '+pName(st.period)} · 비중 0.05% 미만 세부 부문은 생략`+(isInv(g)?' · EDGAR 부문 구분':'');
 }
