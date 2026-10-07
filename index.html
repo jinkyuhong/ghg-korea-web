@@ -296,8 +296,10 @@ footer{color:var(--text-tertiary)}
 .ins-col h4{display:flex;align-items:baseline;gap:8px;font-size:16px;font-weight:700;margin-bottom:8px}
 .ins-col h4 .g{font-size:20px;letter-spacing:-.4px}
 .ins-col h4 small{font-size:12px;font-weight:500;color:var(--text-tertiary)}
-.ins-col p{font-size:14.5px;line-height:1.75;color:#333}
-.ins-col p b{font-weight:700;color:#111}
+.ins-col ul{list-style:none;margin:0;padding:0}
+.ins-col li{position:relative;padding-left:14px;margin-bottom:6px;font-size:14.5px;line-height:1.65;color:#333;word-break:keep-all;overflow-wrap:anywhere}
+.ins-col li::before{content:"";position:absolute;left:1px;top:.72em;width:5px;height:5px;border-radius:50%;background:var(--red)}
+.ins-col li b{font-weight:700;color:#111}
 .ins-note{margin-top:16px;padding:12px 16px;border-radius:12px;background:#FFF6D6;color:#5c3b00;font-size:13.5px;line-height:1.65}
 .ins-note[hidden]{display:none}
 .ins-foot{margin-top:14px;font-size:12px;line-height:1.6;color:var(--text-tertiary)}
@@ -492,7 +494,7 @@ select[hidden]{display:none}
 const $=s=>document.querySelector(s);
 let D,G;
 try{
-  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261008b',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
+  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261008c',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
 }catch(e){
   $('#app').innerHTML='<div class="err"><b>자료를 불러오지 못했습니다.</b><br>data/sido_data.json, data/sido.geojson 파일이 같은 저장소에 있는지 확인해 주세요.<br>(PC에서 미리 볼 때는 폴더에서 <code>python3 -m http.server</code> 실행 후 http://localhost:8000 으로 접속)</div>';
   return;
@@ -627,7 +629,7 @@ async function setProv(p){
     const code=D0.sido[p].code;
     if(!subCache[p]){
       try{
-        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261008b`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
+        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261008c`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
         subCache[p]={d:prepSub(d,p),g};
       }catch(e){ console.error('시군구 자료를 불러오지 못했습니다',e); sel.value=st.prov; return; }
     }
@@ -855,7 +857,7 @@ function drawMonthly(){      // 월별 산출물을 분기로 묶은 장기 시�
 
 /* ───────── 한눈에 보기: 자료에서 자동으로 만드는 지역 설명 ───────── */
 let FAC=null;       // 주요 시설 목록(없어도 동작: 시설 문장만 빠짐)
-fetch('data/facilities.json?v=20261008b',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{FAC=j; if(j) drawInsight();}).catch(()=>{});
+fetch('data/facilities.json?v=20261008c',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{FAC=j; if(j) drawInsight();}).catch(()=>{});
 const hasJong=w=>{const c=String(w).replace(/\([^)]*\)\s*$/,'').trim().slice(-1), k=c.charCodeAt(0);   // 끝의 괄호 설명은 빼고 판단
   if(k>=0xAC00&&k<=0xD7A3) return (k-0xAC00)%28!==0;
   if(/[0-9]/.test(c)) return '013678'.includes(c);
@@ -958,7 +960,7 @@ function gasText(c,g,y){
   }
   // ⑧ 불확실성
   if(hasK('emis_sd')) out.push(`배출량 추정의 불확실성은 ±${nf(V('emis_sd')/e*100,0)}%입니다.`);
-  return out.join(' ');
+  return out.join(' ').split(/(?<=다\.)\s+/).filter(Boolean).map(t=>`<li>${t}</li>`).join('');
 }
 function drawInsight(){
   const c=insightCtx(), y=st.year, cols=[];
@@ -967,7 +969,7 @@ function drawInsight(){
     let yy=y; const ok=q=>c.ds.quarterly[q]&&c.ds.quarterly[q][g]&&c.ds.quarterly[q][g].emis;
     if(!ok(yy)) yy=YEARS.slice().reverse().find(ok);            // 그 해 자료가 없으면 가장 가까운 해
     const t=yy?gasText(c,g,yy):'';
-    if(t) cols.push(`<div class="ins-col"><h4><span class="g">${GAS[g].sym}</span>${GAS[g].name}<small>${yy}년${g==='n2o'?' · EDGAR 통계(관측 보정 없음)':yy!==y?'':''}</small></h4><p>${t}</p></div>`);
+    if(t) cols.push(`<div class="ins-col"><h4><span class="g">${GAS[g].sym}</span>${GAS[g].name}<small>${yy}년${g==='n2o'?' · EDGAR 통계(관측 보정 없음)':yy!==y?'':''}</small></h4><ul>${t}</ul></div>`);
   });
   $('#insCols').innerHTML=cols.join('');
   $('#insTitle').textContent=`한눈에 보는 ${rName(st.sido)}`;
