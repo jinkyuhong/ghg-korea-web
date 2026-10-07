@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>대한민국 시도별 온실가스 대시보드 | WRF-Chem/DART</title>
+<title>온실가스 포털: 지자체별 온실가스 배출량 및 농도</title>
 <meta name="color-scheme" content="light">
 <meta name="description" content="WRF-Chem/DART 대기 역산으로 추정한 시도별 CO₂·CH₄ 농도, 배출량, 생태계 흡수량">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -228,7 +228,7 @@ header.top{background:#fff;color:#111;border-bottom:1px solid var(--border-subtl
 .top-in{height:72px}
 .brand::before{width:12px;height:12px;border-radius:50%;background:var(--red-active)}
 .brand b{font-size:19px;font-weight:700;letter-spacing:-.4px}
-.brand span{color:var(--text-tertiary);font-size:13px}
+.brand span{color:var(--text-tertiary);font-size:13px;white-space:normal;line-height:1.35} .brand span em{font-style:normal;display:inline-block}
 nav.main{height:72px}
 nav.main a{color:#111;font-size:16px;font-weight:500;line-height:72px;padding:0 16px;border-bottom:0}
 nav.main a:hover{color:var(--red)}
@@ -313,6 +313,8 @@ select[hidden]{display:none}
 .sec-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 32px;align-items:start}
 .sec-cols table td{padding:8px 16px}
 .sec-cols .empty{grid-column:1/-1;text-align:center;color:var(--text-tertiary);padding:28px 16px}
+.brand-sub{display:none;font-size:12px;line-height:1.45;color:var(--text-tertiary);padding-top:0;padding-bottom:10px} .brand-sub em{font-style:normal;display:inline-block}
+@media (max-width:980px){.brand-sub{display:block}}
 @media (max-width:980px){.sec-cols{grid-template-columns:minmax(0,1fr);gap:16px 0}}
 @media (max-width:640px){
   .wrap{padding:0 16px}
@@ -333,13 +335,14 @@ select[hidden]{display:none}
 
 <header class="top">
   <div class="wrap top-in">
-    <div class="brand"><b>시도별 온실가스 대시보드</b><span>WRF-Chem/DART 대기 역산 · 대한민국</span></div>
+    <div class="brand"><b>온실가스 포털</b><span>지자체별 온실가스 배출량 및 농도 <em>(국제 공개 자료 및 대기 역추적 기법에 기반한 추정자료)</em></span></div>
     <nav class="main" aria-label="주 메뉴">
       <a href="#dashboard" class="active">대시보드</a>
       <a href="#compare">시도 비교</a>
       <a href="#about">자료·방법</a>
     </nav>
   </div>
+  <div class="wrap brand-sub">지자체별 온실가스 배출량 및 농도 <em>(국제 공개 자료 및 대기 역추적 기법에 기반한 추정자료)</em></div>
 </header>
 
 <main class="wrap" id="app">
@@ -461,7 +464,8 @@ select[hidden]{display:none}
           <li>불확실성 표시: 배출량·농도 모두 값 대비 상대 비율(표준편차 ÷ 값 × 100, %)</li>
           <li>배출량 불확실성(±): 격자별 앙상블 표준편차를 제곱합의 제곱근으로 시도 단위로 합산(격자 오차가 서로 독립이라고 가정). 전국 값은 시도 값의 제곱합 제곱근, 연 값은 네 분기의 평균</li>
           <li>N₂O: 역산 대상이 아니므로 EDGAR 격자 인벤토리(0.1°, 연 단위)만 사용. CO₂ 환산은 GWP₁₀₀ = 265 적용</li>
-          <li>2025년: 분기 공개본이 없어 월별 역산 산출물을 분기로 묶은 배출량만 제공(부문·농도·불확실성·생태계 흡수량 없음)</li>
+          <li>2025년: 분기 공개본이 없어 월별 역산 산출물을 분기로 묶은 배출량과 생태계 흡수량(CO₂)만 제공(부문·농도·불확실성 없음)</li>
+          <li>2025년 생태계 흡수량: 월별 산출물은 하루 4회(6시간 간격) 값의 평균이어서 일변화가 반영되지 않습니다. 2019·2020년에 분기 공개본(매시 평균)과 월별 산출물의 차이로 구한 평균 일변화(MDV) 보정량을 두 해 평균하여 2025년 값에 더했습니다. 2025년 고유의 일변화가 아니므로 참고용입니다.</li>
           <li>장기 분기별 배출량(2015–2020년, 2025년): 월별 역산 산출물을 분기로 묶은 연환산 값. 분기 공개본과 처리 버전이 달라 같은 분기라도 수 % 다를 수 있습니다.</li>
         </ul>
       </div>
@@ -488,7 +492,7 @@ select[hidden]{display:none}
 const $=s=>document.querySelector(s);
 let D,G;
 try{
-  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261007d',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
+  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261008b',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
 }catch(e){
   $('#app').innerHTML='<div class="err"><b>자료를 불러오지 못했습니다.</b><br>data/sido_data.json, data/sido.geojson 파일이 같은 저장소에 있는지 확인해 주세요.<br>(PC에서 미리 볼 때는 폴더에서 <code>python3 -m http.server</code> 실행 후 http://localhost:8000 으로 접속)</div>';
   return;
@@ -523,7 +527,7 @@ if(D.mlo&&D.mlo.co2) $('#mloNote').hidden=false;
 const HAS_SD=YEARS.every(y=>['co2','ch4'].every(g=>D.quarterly[y][g].emis_sd));   // 예전 자료 파일이면 배출량 불확실성 없음
 // 분기 공개본이 없는 해(예: 2025년): 월별 산출물에서 만든 배출량만 있는 '부분 자료' 연도
 const XQ=D.extra_quarterly||{}, XYEARS=Object.keys(XQ).sort();
-XYEARS.forEach(y=>{D.quarterly[y]={}; ['co2','ch4'].forEach(g=>{if(XQ[y][g+'_emis'])D.quarterly[y][g]={emis:XQ[y][g+'_emis']};});});
+XYEARS.forEach(y=>{D.quarterly[y]={}; ['co2','ch4'].forEach(g=>{if(XQ[y][g+'_emis']){D.quarterly[y][g]={emis:XQ[y][g+'_emis']}; if(XQ[y][g+'_nee'])D.quarterly[y][g].nee=XQ[y][g+'_nee'];}});});
 const ALLY=YEARS.concat(XYEARS).sort();
 const has=(g,k,y)=>{k=k==='net'?'nee':(k==='share'||k==='eq')?'emis':k; return !!(D.quarterly[y]&&D.quarterly[y][g]&&D.quarterly[y][g][k]);};
 const yearsOf=g=>ALLY.filter(y=>has(g,'emis',y));
@@ -612,7 +616,7 @@ function prepSub(ds,pi){
   ds.pi=pi; ds.meta=D0.meta; ds.mlo=D0.mlo;
   if(HAS_N2O&&ds.n2o) YEARS.forEach(y=>{const t=ds.n2o.total[ds.n2o.years.indexOf(+y)]; ds.quarterly[y].n2o={emis:[t,t,t,t],sec:[0,1,2,3].map(()=>ds.n2o.sec[y])};});
   const xq=ds.extra_quarterly||{};
-  Object.keys(xq).forEach(y=>{ds.quarterly[y]={}; ['co2','ch4'].forEach(g=>{if(xq[y][g+'_emis'])ds.quarterly[y][g]={emis:xq[y][g+'_emis']};});});
+  Object.keys(xq).forEach(y=>{ds.quarterly[y]={}; ['co2','ch4'].forEach(g=>{if(xq[y][g+'_emis']){ds.quarterly[y][g]={emis:xq[y][g+'_emis']}; if(xq[y][g+'_nee'])ds.quarterly[y][g].nee=xq[y][g+'_nee'];}});});
   return ds;
 }
 let provSeq=0;
@@ -623,7 +627,7 @@ async function setProv(p){
     const code=D0.sido[p].code;
     if(!subCache[p]){
       try{
-        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261007d`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
+        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261008b`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
         subCache[p]={d:prepSub(d,p),g};
       }catch(e){ console.error('시군구 자료를 불러오지 못했습니다',e); sel.value=st.prov; return; }
     }
@@ -731,10 +735,14 @@ function drawKpis(){
     h+=kpi(g==='co2'?'인위적 배출량':'메탄 배출량',e.t,e.u,join(yoy('emis'),'월별 산출물 기반'),true);
     if(g==='ch4') h+=kpi('CO₂ 환산 배출량',...eqFmt(eq),'GWP₁₀₀ = 28 적용');
     h+=shareTile();
-    if(g==='co2') h+=none('생태계 흡수량',`${y}년 자료 준비 중`);
+    if(g==='co2'){
+      if(has(g,'nee',y)){ const n=fFlux(V('nee'),g,Math.max(Math.abs(V('emis')),Math.abs(V('nee'))));
+        h+=kpi('생태계 흡수량',n.t,n.u,join(V('nee')<0?'순흡수':'순배출','2019·2020년 평균 MDV 보정')); }
+      else h+=none('생태계 흡수량',`${y}년 자료 준비 중`);
+    }
     h+=none('지표 농도',`${y}년 자료 없음`);
     $('#kpis').innerHTML=h; $('#regName').textContent=rName(i);
-    $('#regCtx').textContent=`${GAS[g].name}(${GAS[g].sym}) · ${y}년 ${pName(p)}`+(p==='a'?'':' (연환산)')+' · 배출량만 제공';
+    $('#regCtx').textContent=`${GAS[g].name}(${GAS[g].sym}) · ${y}년 ${pName(p)}`+(p==='a'?'':' (연환산)')+(g==='co2'&&has(g,'nee',y)?' · 배출량·흡수량만 제공':' · 배출량만 제공');
     return;
   }
   if(g==='co2'){
@@ -791,15 +799,16 @@ function drawQuarterly(){
   const EL=QL.concat(xy.flatMap(y=>[1,2,3,4].map(q=>`${y} ${q}분기`)));
   xy.forEach(y=>[0,1,2,3].forEach(q=>e.push(qv(g,'emis',y,q,i))));
   const barCol=(solid,light)=>e.map((_,k)=>k<nBase?solid:light);
-  const xNote=xy.length?` · 테두리만 있는 막대(${xy.join('·')}년)는 월별 산출물 기반`:'';
+  const xNote=xy.length?` · 테두리만 있는 막대(${xy.join('·')}년)는 월별 산출물 기반(흡수량은 MDV 보정)`:'';
   const xBorder={borderColor:'#111111',borderWidth:e.map((_,k)=>k<nBase?0:1.5)};
   if(g==='co2'){
-    const n=QK.map(([y,q])=>qv(g,'nee',y,q,i)), U=fluxUnit(g,Math.max(...e.map(Math.abs),...n.map(Math.abs))), nil=e.slice(nBase).map(()=>null), unit=`${U.u} CO₂/yr`;
+    const n=QK.map(([y,q])=>qv(g,'nee',y,q,i)); xy.forEach(y=>[0,1,2,3].forEach(q=>n.push(has(g,'nee',y)?qv(g,'nee',y,q,i):null)));
+    const U=fluxUnit(g,Math.max(...e.map(Math.abs),...n.map(v=>Math.abs(v||0)))), unit=`${U.u} CO₂/yr`;
     const o=baseOpts(unit); o.plugins.legend.display=true;
     mk('chQ',{data:{labels:EL,datasets:[
-      {type:'line',label:'순배출량',data:n.map((v,k)=>(e[k]+v)/U.div).concat(nil),borderColor:css('--red'),backgroundColor:css('--red'),borderWidth:2,pointRadius:4,pointBorderColor:css('--surface'),pointBorderWidth:2,dp:U.dp+1,order:0},
+      {type:'line',label:'순배출량',data:n.map((v,k)=>v==null?null:(e[k]+v)/U.div),borderColor:css('--red'),backgroundColor:css('--red'),borderWidth:2,pointRadius:4,pointBorderColor:css('--surface'),pointBorderWidth:2,dp:U.dp+1,order:0},
       {type:'bar',label:'인위적 배출량',data:e.map(v=>v/U.div),backgroundColor:barCol(css('--co2'),'#FFFFFF'),...xBorder,borderRadius:4,maxBarThickness:22,dp:U.dp+1,order:1},
-      {type:'bar',label:'생태계 흡수량',data:n.map(v=>v/U.div).concat(nil),backgroundColor:css('--sink'),borderRadius:4,maxBarThickness:22,dp:U.dp+1,order:1}]},options:o});
+      {type:'bar',label:'생태계 흡수량',data:n.map(v=>v==null?null:v/U.div),backgroundColor:barCol(css('--sink'),'#FFFFFF'),borderColor:css('--sink'),borderWidth:e.map((_,k)=>k<nBase?0:1.5),borderRadius:4,maxBarThickness:22,dp:U.dp+1,order:1}]},options:o});
     $('#qTitle').textContent='분기별 배출량·생태계 흡수량·순배출량';
   }else{
     const U=fluxUnit(g,Math.max(...e)), unit=`${U.u} CH₄/yr`;
@@ -846,7 +855,7 @@ function drawMonthly(){      // 월별 산출물을 분기로 묶은 장기 시�
 
 /* ───────── 한눈에 보기: 자료에서 자동으로 만드는 지역 설명 ───────── */
 let FAC=null;       // 주요 시설 목록(없어도 동작: 시설 문장만 빠짐)
-fetch('data/facilities.json?v=20261007d',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{FAC=j; if(j) drawInsight();}).catch(()=>{});
+fetch('data/facilities.json?v=20261008b',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{FAC=j; if(j) drawInsight();}).catch(()=>{});
 const hasJong=w=>{const c=String(w).replace(/\([^)]*\)\s*$/,'').trim().slice(-1), k=c.charCodeAt(0);   // 끝의 괄호 설명은 빼고 판단
   if(k>=0xAC00&&k<=0xD7A3) return (k-0xAC00)%28!==0;
   if(/[0-9]/.test(c)) return '013678'.includes(c);
@@ -910,7 +919,7 @@ function gasText(c,g,y){
       topKeys=keys;
     }
   }
-  else if(!isInv(g)) out.push(`${y}년은 배출량 자료만 있어 부문 구성과 농도 설명은 생략했습니다.`);
+  else if(!isInv(g)) out.push(`${y}년은 부문과 농도 자료가 없어 그 설명은 생략했습니다.`);
   { const fs=facilitiesFor(c,g,topKeys), nmax=c.level==='sido'?4:3;
     if(fs.length){ const names=fs.slice(0,nmax).map(f=>f.n); out.push(`이 지역에는 ${names.join(', ')}${fs.length>nmax?' 등':''}${hasJong(fs.length>nmax?'등':names[names.length-1])?'이':'가'} 있습니다.`); } }
   // ④ 증감
@@ -934,6 +943,7 @@ function gasText(c,g,y){
       out.push(r>=100?`숲과 농경지 등 생태계가 연간 <b>약 ${tons(-n)}</b>을 흡수하는데, 이는 배출량의 ${nf(r/100,1)}배입니다.`:`숲과 농경지 등 생태계가 연간 <b>약 ${tons(-n)}</b>을 흡수해 배출량의 약 ${nf(r,0)}%를 상쇄합니다.`);
       if(nq[qmin]<0) out.push(`흡수는 ${qmin+1}분기(${QMON[qmin]})에 가장 활발합니다.`);
     }else out.push(`연간으로 보면 생태계의 호흡이 광합성보다 커서 약 ${tons(n)}을 더 내보냈습니다.`);
+    if(XYEARS.includes(y)) out.push(`${y}년 흡수량은 2019·2020년 평균 일변화(MDV)로 보정한 참고용 값입니다.`);
   }
   // ⑦ 농도
   if(hasK('conc')){
