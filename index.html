@@ -288,6 +288,20 @@ tr.grp td,#cmp tfoot td{background:var(--bg-subtle)}
 .refs a{color:#111;text-decoration:underline;text-underline-offset:3px}
 .refs a:hover{color:var(--red)}
 footer{color:var(--text-tertiary)}
+/* 한눈에 보기(자동 설명 보드) */
+.insight{margin-top:20px}
+.ins-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));grid-auto-flow:column;gap:0 28px}
+.ins-col{min-width:0;padding-left:20px;border-left:1px solid var(--border-subtle)}
+.ins-col:first-child{padding-left:0;border-left:0}
+.ins-col h4{display:flex;align-items:baseline;gap:8px;font-size:16px;font-weight:700;margin-bottom:8px}
+.ins-col h4 .g{font-size:20px;letter-spacing:-.4px}
+.ins-col h4 small{font-size:12px;font-weight:500;color:var(--text-tertiary)}
+.ins-col p{font-size:14.5px;line-height:1.75;color:#333}
+.ins-col p b{font-weight:700;color:#111}
+.ins-note{margin-top:16px;padding:12px 16px;border-radius:12px;background:#FFF6D6;color:#5c3b00;font-size:13.5px;line-height:1.65}
+.ins-note[hidden]{display:none}
+.ins-foot{margin-top:14px;font-size:12px;line-height:1.6;color:var(--text-tertiary)}
+@media (max-width:980px){.ins-cols{grid-auto-flow:row;grid-template-columns:minmax(0,1fr);gap:16px 0}.ins-col{padding-left:0;border-left:0;padding-top:16px;border-top:1px solid var(--border-subtle)}.ins-col:first-child{padding-top:0;border-top:0}}
 /* 배치: 지도 옆에 요약·분기 그래프·농도 그래프, 아래에 부문 표(2단)와 장기 분기 그래프를 전체 폭으로 */
 .grid-2,body[data-gas="n2o"] .grid-2{grid-template-columns:minmax(0,1fr)}
 .chart-box.short{height:230px}
@@ -383,6 +397,12 @@ select[hidden]{display:none}
       </div>
     </div>
 
+    <div class="card insight" id="insight">
+      <div class="card-head"><div><h3 id="insTitle">한눈에 보기</h3><div class="sub" id="insSub"></div></div></div>
+      <div class="ins-cols" id="insCols"></div>
+      <p class="ins-note" id="insSmall" hidden></p>
+      <p class="ins-foot">이 설명은 화면의 자료에서 자동으로 만든 문장입니다. 부문 구분은 EDGAR 통계의 구성을 따르고, 시설 이름은 2020년 가동 기준 주요 시설 목록(발전소·제철소·정유·석유화학·시멘트·소각장·매립지·하수처리장·공항)에서 가져왔습니다. 개별 시설의 배출량을 뜻하지는 않습니다.</p>
+    </div>
     <div class="grid-2">
       <div class="card">
         <div class="card-head"><div><h3 id="secTitle">부문별 배출량</h3><div class="sub" id="secSub"></div></div></div>
@@ -468,7 +488,7 @@ select[hidden]{display:none}
 const $=s=>document.querySelector(s);
 let D,G;
 try{
-  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261007a',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
+  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261007d',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
 }catch(e){
   $('#app').innerHTML='<div class="err"><b>자료를 불러오지 못했습니다.</b><br>data/sido_data.json, data/sido.geojson 파일이 같은 저장소에 있는지 확인해 주세요.<br>(PC에서 미리 볼 때는 폴더에서 <code>python3 -m http.server</code> 실행 후 http://localhost:8000 으로 접속)</div>';
   return;
@@ -603,7 +623,7 @@ async function setProv(p){
     const code=D0.sido[p].code;
     if(!subCache[p]){
       try{
-        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261007a`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
+        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261007d`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
         subCache[p]={d:prepSub(d,p),g};
       }catch(e){ console.error('시군구 자료를 불러오지 못했습니다',e); sel.value=st.prov; return; }
     }
@@ -823,6 +843,129 @@ function drawMonthly(){      // 월별 산출물을 분기로 묶은 장기 시�
   $('#mSub').textContent=`${rName(i)} · 월별 역산 산출물을 분기로 묶은 연환산 값 · 자료가 없는 해는 비워 둠`;
 }
 
+
+/* ───────── 한눈에 보기: 자료에서 자동으로 만드는 지역 설명 ───────── */
+let FAC=null;       // 주요 시설 목록(없어도 동작: 시설 문장만 빠짐)
+fetch('data/facilities.json?v=20261007d',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{FAC=j; if(j) drawInsight();}).catch(()=>{});
+const hasJong=w=>{const c=String(w).replace(/\([^)]*\)\s*$/,'').trim().slice(-1), k=c.charCodeAt(0);   // 끝의 괄호 설명은 빼고 판단
+  if(k>=0xAC00&&k<=0xD7A3) return (k-0xAC00)%28!==0;
+  if(/[0-9]/.test(c)) return '013678'.includes(c);
+  return false;};
+const josa=(w,a,b)=>w+(hasJong(w)?a:b);
+const tons=t=>{const a=Math.abs(t), sg=t<0?'-':'';
+  if(a>=1e8) return sg+nf(a/1e8,2)+'억 톤';
+  if(a>=1e6) return sg+nf(Math.round(a/1e4),0)+'만 톤';
+  if(a>=1e4) return sg+nf(a/1e4,1)+'만 톤';
+  if(a>=100) return sg+nf(Math.round(a),0)+'톤';
+  return sg+nf(a,1)+'톤';};
+const secLab=(k,g)=>typeof SECTOR[k]==='object'?SECTOR[k][g]:(SECTOR[k]||k);
+const QMON=['1–3월','4–6월','7–9월','10–12월'];
+function insightCtx(){
+  if(inProv()&&st.sido>=0) return {level:'sgg',ds:D,i:st.sido,pDs:D0,pI:D.pi,pName:provShort(),name:D.sido[st.sido].name,code:D.sido[st.sido].code,w:D.sido[st.sido].w,peerWord:'시군구'};
+  const si=inProv()?D.pi:st.sido;
+  if(si>=0) return {level:'sido',ds:D0,i:si,pDs:D0,pI:-1,pName:'전국',name:D0.sido[si].name,code:D0.sido[si].code,w:D0.sido[si].w,peerWord:'시도'};
+  return {level:'nation',ds:D0,i:-1,name:'전국'};
+}
+function facilitiesFor(c,g,keys){
+  if(!FAC||c.level==='nation') return [];
+  const list=[]; Object.keys(FAC.by).forEach(code=>{ if(c.level==='sgg'?code===c.code:code.slice(0,2)===c.code) list.push(...FAC.by[code]); });
+  // 부문 비중과 관계없이, 해당 기체를 배출하는 종류의 시설이면 모두 언급(주요 부문 시설을 앞에)
+  const hit=f=>((FAC.sectors[f.t]||{})[g]||[]).some(k=>keys.has(k))?1:0;
+  return list.filter(f=>(FAC.sectors[f.t]||{})[g]).sort((a,b)=>hit(b)-hit(a)||b.s-a.s);
+}
+function gasText(c,g,y){
+  const hasK=k=>!!(c.ds.quarterly[y]&&c.ds.quarterly[y][g]&&c.ds.quarterly[y][g][k]);
+  if(!hasK('emis')) return '';
+  const V=(k,yy=y)=>val(g,k,yy,'a',c.i,c.ds), sym=GAS[g].sym, small=c.level==='sgg'&&c.w<1, out=[];
+  const e=V('emis');
+  // ① 규모·순위
+  if(c.level==='nation'){
+    const tops=D0.sido.map((s,j)=>[s.short,val(g,'emis',y,'a',j,D0)]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+    out.push(`전국의 ${sym} 배출량은 <b>약 ${tons(e)}</b>입니다. 시도별로는 ${tops.join(', ')} 순으로 많습니다.`);
+  }else{
+    const peers=c.ds.sido.map((_,j)=>val(g,'emis',y,'a',j,c.ds)), rank=peers.filter(v=>v>e).length+1, n=peers.length;
+    const share=e/val(g,'emis',y,'a',c.pI,c.pDs)*100;
+    let t=`${josa(c.name,'의','의')} ${sym} 배출량은 <b>약 ${tons(e)}</b>으로 ${c.pName}의 ${nf(share,1)}%입니다.`;
+    if(!small&&n>1) t+=rank===1?` ${n}개 ${c.peerWord} 가운데 가장 많습니다.`:rank===n?` ${n}개 ${c.peerWord} 가운데 가장 적습니다.`:` ${n}개 ${c.peerWord} 가운데 ${rank}번째로 많습니다.`;
+    out.push(t);
+  }
+  if(g==='ch4') out.push(`이산화탄소로 환산하면 약 ${tons(e*GWP)}에 해당합니다.`);
+  if(g==='n2o') out.push(`이산화탄소로 환산하면 약 ${tons(e*GWP_N2O)}에 해당합니다.`);
+  // ② 부문 구성과 비교, ③ 주요 시설
+  let topKeys=new Set();
+  if(hasK('sec')){
+    const sv=sectors(g,y,'a',c.i,c.ds), tot=Object.values(sv).reduce((a,b)=>a+b,0);
+    const top=Object.entries(sv).map(([k,v])=>[k,v/tot*100]).filter(x=>x[1]>=3).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    if(top.length){
+      let t=`부문별로는 ${josa(secLab(top[0][0],g),'이','가')} ${nf(top[0][1],0)}%로 가장 큽니다`;
+      if(top.length>1) t+=`. 다음은 ${top.slice(1).map(x=>`${secLab(x[0],g)} ${nf(x[1],0)}%`).join(', ')}입니다.`; else t+='.';
+      out.push(t);
+      const keys=new Set(top.map(x=>x[0]));
+      if(c.level!=='nation'){
+        const pv=sectors(g,y,'a',c.pI,c.pDs), pt=Object.values(pv).reduce((a,b)=>a+b,0);
+        const diff=Object.entries(sv).map(([k,v])=>[k,v/tot*100,(pv[k]||0)/pt*100]).filter(x=>x[1]>=8).map(x=>[...x,x[1]-x[2]]).sort((a,b)=>b[3]-a[3])[0];
+        if(diff&&diff[3]>=8){ out.push(`${secLab(diff[0],g)} 비중은 ${c.pName} 평균(${nf(diff[2],0)}%)보다 높은 편입니다.`); keys.add(diff[0]); }
+        else out.push(`부문 구성은 ${c.pName} 평균과 비슷합니다.`);
+      }
+      topKeys=keys;
+    }
+  }
+  else if(!isInv(g)) out.push(`${y}년은 배출량 자료만 있어 부문 구성과 농도 설명은 생략했습니다.`);
+  { const fs=facilitiesFor(c,g,topKeys), nmax=c.level==='sido'?4:3;
+    if(fs.length){ const names=fs.slice(0,nmax).map(f=>f.n); out.push(`이 지역에는 ${names.join(', ')}${fs.length>nmax?' 등':''}${hasJong(fs.length>nmax?'등':names[names.length-1])?'이':'가'} 있습니다.`); } }
+  // ④ 증감
+  if(isInv(g)){
+    const A=c.ds.n2o, D0A=D0.n2o, ser=A.years.map((_,k)=>c.i>=0?A.total[k][c.i]:A.total[k].reduce((a,b)=>a+b,0));
+    if(!small&&ser.length>1){ const ch=(ser[ser.length-1]/ser[0]-1)*100; out.push(Math.abs(ch)<2?`${A.years[0]}년 이후 큰 변화가 없습니다.`:`${A.years[0]}년부터 ${A.years[A.years.length-1]}년 사이 ${nf(Math.abs(ch),0)}% ${ch<0?'줄었습니다':'늘었습니다'}.`); }
+  }else{
+    const ys=ALLY.filter(yy=>c.ds.quarterly[yy]&&c.ds.quarterly[yy][g]&&c.ds.quarterly[yy][g].emis), py=ys[ys.indexOf(y)-1];
+    if(py&&!small){ const ch=(e/V('emis',py)-1)*100;
+      out.push((Math.abs(ch)<2?`${py}년과 비슷한 수준입니다.`:`${py}년보다 ${nf(Math.abs(ch),1)}% ${ch<0?'줄었습니다':'늘었습니다'}.`)+(XYEARS.includes(y)?` 다만 ${y}년은 자료 버전이 달라 참고용입니다.`:'')); }
+    // ⑤ 계절
+    const q=[0,1,2,3].map(k=>qv(g,'emis',y,k,c.i,c.ds)), win=(q[0]+q[3])/2, sum=(q[1]+q[2])/2;
+    if(win/sum>1.1) out.push(`겨울철(1·4분기) 배출이 여름철(2·3분기)보다 약 ${nf((win/sum-1)*100,0)}% 많습니다.`);
+    else if(sum/win>1.1) out.push(`여름철(2·3분기) 배출이 겨울철(1·4분기)보다 약 ${nf((sum/win-1)*100,0)}% 많습니다.`);
+  }
+  // ⑥ 생태계 흡수 (CO₂)
+  if(g==='co2'&&hasK('nee')){
+    const n=V('nee'), r=-n/e*100, nq=[0,1,2,3].map(k=>qv(g,'nee',y,k,c.i,c.ds)), qmin=nq.indexOf(Math.min(...nq));
+    if(Math.abs(r)<2) out.push('식생이 흡수하는 양은 배출량에 비해 매우 적습니다.');
+    else if(n<0){
+      out.push(r>=100?`숲과 농경지 등 생태계가 연간 <b>약 ${tons(-n)}</b>을 흡수하는데, 이는 배출량의 ${nf(r/100,1)}배입니다.`:`숲과 농경지 등 생태계가 연간 <b>약 ${tons(-n)}</b>을 흡수해 배출량의 약 ${nf(r,0)}%를 상쇄합니다.`);
+      if(nq[qmin]<0) out.push(`흡수는 ${qmin+1}분기(${QMON[qmin]})에 가장 활발합니다.`);
+    }else out.push(`연간으로 보면 생태계의 호흡이 광합성보다 커서 약 ${tons(n)}을 더 내보냈습니다.`);
+  }
+  // ⑦ 농도
+  if(hasK('conc')){
+    const cc=V('conc'), dp=GAS[g].concDp, u=GAS[g].concUnit, thr=g==='co2'?3:20, ro=u==='ppb'?'로':'으로';
+    if(c.level==='nation'){
+      const ml=g==='co2'&&D0.mlo&&D0.mlo.co2&&D0.mlo.co2[y];
+      out.push(`지표 농도는 ${nf(cc,dp)} ${u}`+(ml?`${ro}, 배경대기(하와이 마우나로아 관측소)보다 약 ${nf(cc-ml.reduce((a,b)=>a+b,0)/4,0)} ${u} 높습니다.`:'입니다.'));
+    }else{
+      const d=cc-val(g,'conc',y,'a',c.pI,c.pDs);
+      out.push(`지표 농도는 ${nf(cc,dp)} ${u}${ro} ${c.pName} 평균`+(Math.abs(d)<thr?'과 비슷합니다.':`보다 ${nf(Math.abs(d),dp)} ${u} ${d>0?'높습니다':'낮습니다'}.`));
+    }
+  }
+  // ⑧ 불확실성
+  if(hasK('emis_sd')) out.push(`배출량 추정의 불확실성은 ±${nf(V('emis_sd')/e*100,0)}%입니다.`);
+  return out.join(' ');
+}
+function drawInsight(){
+  const c=insightCtx(), y=st.year, cols=[];
+  ['co2','ch4','n2o'].forEach(g=>{
+    if(g==='n2o'&&!HAS_N2O) return;
+    let yy=y; const ok=q=>c.ds.quarterly[q]&&c.ds.quarterly[q][g]&&c.ds.quarterly[q][g].emis;
+    if(!ok(yy)) yy=YEARS.slice().reverse().find(ok);            // 그 해 자료가 없으면 가장 가까운 해
+    const t=yy?gasText(c,g,yy):'';
+    if(t) cols.push(`<div class="ins-col"><h4><span class="g">${GAS[g].sym}</span>${GAS[g].name}<small>${yy}년${g==='n2o'?' · EDGAR 통계(관측 보정 없음)':yy!==y?'':''}</small></h4><p>${t}</p></div>`);
+  });
+  $('#insCols').innerHTML=cols.join('');
+  $('#insTitle').textContent=`한눈에 보는 ${rName(st.sido)}`;
+  $('#insSub').textContent=`${y}년 연평균 기준 · 세 가지 온실가스의 배출과 흡수 특징`;
+  const sm=$('#insSmall'), small=c.level==='sgg'&&c.w<1; sm.hidden=!small;
+  if(small) sm.innerHTML=`<b>참고용 값입니다.</b> ${josa(c.name,'은','는')} 계산 격자(9 km) 한 칸보다 작아(약 ${nf(c.w,1)}칸) 이웃 지역의 값과 섞여 있고 불확실성이 큽니다. 이 지역만의 특징이라기보다 주변을 포함한 경향으로 보아 주세요. 순위와 증감은 표시하지 않았습니다.`;
+}
+
 /* ───────── 부문 표 ───────── */
 function drawSectors(){
   const box=$('#secCols');
@@ -897,7 +1040,7 @@ function render(){
   $('#fPeriod').hidden=inv; $('#segMetric').hidden=inv||document.querySelectorAll('#segMetric button').length<2;
   const note=$('#n2oNote'); note.hidden=!inv;
   if(inv) note.textContent=`N₂O는 대기 역산 결과가 아니라 ${D.n2o.source} 상향식 인벤토리(0.1° 격자, 연 단위)를 시도별로 집계한 값입니다. 관측으로 보정되지 않았으며 농도·불확실성·분기 자료는 없습니다.`;
-  [drawMap,drawKpis,drawQuarterly,drawSectors,drawMonthly,drawCompare].forEach(f=>{try{f();}catch(e){console.error(f.name,e);}});   // 한 영역의 오류가 다른 영역을 막지 않도록
+  [drawMap,drawKpis,drawInsight,drawQuarterly,drawSectors,drawMonthly,drawCompare].forEach(f=>{try{f();}catch(e){console.error(f.name,e);}});   // 한 영역의 오류가 다른 영역을 막지 않도록
 }
 // 상단 메뉴: 보고 있는 구역 표시
 const links=[...document.querySelectorAll('nav.main a')];
