@@ -449,8 +449,7 @@ select[hidden]{display:none}
         <h4>시도별 집계 방법</h4>
         <ul>
           <li>시도 경계: 2018년 기준 시군구 경계를 17개 시도로 병합 (군위군은 경상북도에 포함)</li>
-          <li>시군구 값: 도(道) 지역은 같은 방식으로 시군구(2018년 경계)별로 계산. 도 값은 소속 시군구 값의 합과 같습니다. 다만 격자(9 km, 약 81 km²)보다 작은 시·군·구는 한 격자의 값을 면적 비율로 나눈 것이어서 이웃 지역과 실제 차이가 구분되지 않습니다.</li>
-          <li>특별시·광역시·특별자치시(서울·부산·대구·인천·광주·대전·울산·세종)는 구·군으로 나누지 않고 시 전체 값만 표시</li>
+          <li>시군구 값: 같은 방식으로 250개 시군구(2018년 경계)별로 계산하며, 특별시·광역시의 구·군과 도에 속한 시의 구까지 표시합니다(세종특별자치시는 시 전체). 시도 값은 소속 시군구 값의 합과 같습니다. 다만 격자(9 km, 약 81 km²)보다 작은 자치구 등은 한 격자의 값을 면적 비율로 나눈 것이어서 이웃 지역과 실제 차이가 구분되지 않습니다.</li>
           <li>배출량·생태계 흡수량: 각 격자의 값을 격자 안 육지에 고르게 분포한다고 보고, 시도가 차지하는 육지 면적 비율로 나누어 합산</li>
           <li>농도: 격자와 시도가 겹치는 면적을 가중치로 한 평균</li>
           <li>순배출량 = 인위적 배출량 + 생태계 흡수량 (해양 교환은 제외)</li>
@@ -469,7 +468,7 @@ select[hidden]{display:none}
 const $=s=>document.querySelector(s);
 let D,G;
 try{
-  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261006j',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
+  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261007a',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
 }catch(e){
   $('#app').innerHTML='<div class="err"><b>자료를 불러오지 못했습니다.</b><br>data/sido_data.json, data/sido.geojson 파일이 같은 저장소에 있는지 확인해 주세요.<br>(PC에서 미리 볼 때는 폴더에서 <code>python3 -m http.server</code> 실행 후 http://localhost:8000 으로 접속)</div>';
   return;
@@ -550,8 +549,8 @@ const inProv=()=>D.pi!=null, provName=()=>D0.sido[D.pi].name, provShort=()=>D0.s
 const rName=i=>i<0?(inProv()?provName():'전국'):(inProv()?`${provName()} ${D.sido[i].name}`:D.sido[i].name);
 const unitWord=()=>inProv()?'시군구':'시도';
 const upShort=()=>inProv()?provShort():'전국';      // 선택한 지역이 속한 상위 범위 이름
-// 특별시·광역시·특별자치시는 구·군으로 나누지 않고 시 전체로만 보여 준다(9 km 격자보다 작은 자치구가 대부분)
-const NOSPLIT=new Set(['11','21','22','23','24','25','26','29']);
+// 하위 구역이 하나뿐인 세종특별자치시만 나누지 않고 시 전체로 보여 준다(특별시·광역시는 구·군까지 표시)
+const NOSPLIT=new Set(['29']);
 const canSplit=i=>!NOSPLIT.has(D0.sido[i].code);
 // 열(지역) 방향 합계 도우미: 시군구 화면의 '전체'는 전국 자료의 그 시도 값을 쓴다
 const pickCol=(rowSub,rowMain,i)=>i>=0?rowSub[i]:(inProv()?rowMain[D.pi]:rowSub.reduce((a,b)=>a+b,0));
@@ -580,7 +579,7 @@ function seg(el,opts,cur,on){
 const sel=$('#selSido'), selG=$('#selSgg');
 sel.innerHTML=`<option value="-1">전국</option>`+D0.sido.map((s,i)=>`<option value="${i}">${s.name}</option>`).join('');
 sel.onchange=()=>chooseSido(+sel.value);
-async function chooseSido(i){            // 도 → 시군구 화면으로, 특별시·광역시 → 전국 지도에서 그 시만 선택
+async function chooseSido(i){            // 시도 → 시군구 화면으로, 세종 → 전국 지도에서 그 시만 선택
   if(i>=0&&canSplit(i)) return setProv(i);
   if(inProv()) await setProv(-1);
   st.sido=i; render();
@@ -604,7 +603,7 @@ async function setProv(p){
     const code=D0.sido[p].code;
     if(!subCache[p]){
       try{
-        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261006j`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
+        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261007a`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
         subCache[p]={d:prepSub(d,p),g};
       }catch(e){ console.error('시군구 자료를 불러오지 못했습니다',e); sel.value=st.prov; return; }
     }
@@ -676,7 +675,7 @@ function drawMap(){
   const unit=isSd(m)?'%':isConc(m)?GAS[g].concUnit:fFlux(hi,g,hi).u;
   $('#cbCap').textContent=`${metricLabel()} (${unit})`+(m==='nee'?' · 음수 = 순흡수, 양수 = 순배출':m==='emis_sd'?' · 배출량 대비 상대 비율':m==='conc_sd'?' · 농도 대비 상대 비율':'');
   $('#mapTitle').textContent=(inProv()?`${provName()} 시군구별`:'시도별')+` ${metricLabel()} · ${st.year}년`+(isInv(g)?'':' '+pName(st.period));
-  $('#mapSub').textContent=inProv()?'시군구를 누르면 해당 지역 값이 표시됩니다.':'시도를 누르면 값이 표시됩니다. 도는 시군구 지도로 들어갑니다.';
+  $('#mapSub').textContent=inProv()?'시군구를 누르면 해당 지역 값이 표시됩니다.':'시도를 누르면 그 시도의 시군구 지도로 들어갑니다.';
   $('#btnBack').hidden=!inProv();
 }
 
@@ -880,7 +879,7 @@ function drawCompare(){
   T.querySelectorAll('th').forEach(t=>t.onclick=()=>{const k=t.dataset.k;st.sort=st.sort.k===k?{k,dir:-st.sort.dir}:{k,dir:k==='name'?1:-1};drawCompare();});
   T.querySelectorAll('tbody tr').forEach(t=>t.onclick=()=>{pick(+t.dataset.i);});
   $('#cmpTitle').textContent=inProv()?`시군구 비교 · ${provName()}`:'시도 비교';
-  $('#cmpDesc').textContent=(inProv()?`${provName()} ${D.sido.length}개 시군구`:'17개 시도')+`의 ${GAS[g].name}(${GAS[g].sym}) 값입니다 · ${y}년${isInv(g)?' (EDGAR 인벤토리)':' '+pName(p)}. 열 제목을 누르면 정렬되고, 행을 누르면 `+(inProv()?'해당 시군구가 선택됩니다.':'해당 시도가 선택됩니다(도는 시군구 화면으로 들어갑니다).');
+  $('#cmpDesc').textContent=(inProv()?`${provName()} ${D.sido.length}개 시군구`:'17개 시도')+`의 ${GAS[g].name}(${GAS[g].sym}) 값입니다 · ${y}년${isInv(g)?' (EDGAR 인벤토리)':' '+pName(p)}. 열 제목을 누르면 정렬되고, 행을 누르면 `+(inProv()?'해당 시군구가 선택됩니다.':'그 시도의 시군구 화면으로 들어갑니다.');
 }
 
 /* ───────── 렌더 ───────── */
