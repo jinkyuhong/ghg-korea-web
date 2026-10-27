@@ -331,6 +331,7 @@ select[hidden]{display:none}
   .region-head h1{font-size:22px} h2.sec{font-size:20px}
   .refs li{padding:14px}
 }
+@media (max-width:420px){nav.main a{padding:0 5px;font-size:12.5px} .brand b{font-size:14px} .brand::before{width:8px!important;height:8px!important} .top-in{gap:6px}}
 </style>
 </head>
 <body data-gas="co2">
@@ -342,6 +343,7 @@ select[hidden]{display:none}
       <a href="#dashboard" class="active">대시보드</a>
       <a href="#compare">시도 비교</a>
       <a href="#about">데이터·방법</a>
+      <a href="info.html">주요 정보</a>
     </nav>
   </div>
   <div class="wrap brand-sub">지자체별 온실가스 배출량 및 농도 <em>(국제 공개 데이터 및 대기 역추적 기법에 기반한 추정 데이터)</em></div>
@@ -458,19 +460,20 @@ select[hidden]{display:none}
         <h4>데이터</h4>
         <ul>
           <li>모형: WRF-Chem/DART 앙상블 자료동화 역산, 수평 격자 9 km</li>
-          <li>배출량·생태계 흡수량·농도: 분기 평균 공개본(2019·2020년)</li>
+          <li>배출량·생태계 흡수량·농도(2015–2020년): 매시 역산 산출물의 월평균을 분기로 묶은 값</li>
+          <li>2019·2020년 값: 분기 공개본(Zenodo)과 처리 방식이 달라 생태계 흡수량·농도는 공개본과 차이 가능</li>
           <li>분기 값: 분기 평균 배출 속도의 연환산(t/yr) · 연 값: 네 분기 평균</li>
-          <li>부문 구분: EDGAR 부문별 사전 배출량 × 역산 보정 비율(사후/사전)</li>
+          <li>부문 구분(2019·2020년만): EDGAR 부문별 사전 배출량 × 역산 보정 비율(사후/사전). 분기 공개본의 부문 비율 적용</li>
           <li>생태계 흡수량: NEE = GEE(광합성, 흡수) + RES(호흡, 배출). <b>산림·농경지·기타 식생의 광합성과 호흡 모두 포함</b>(산림 흡수량만이 아님). 음수 = 순흡수, 양수 = 순배출</li>
           <li>농도: 모형 최하층 분기 평균</li>
           <li id="mloNote" hidden>마우나로아 농도: 하와이 마우나로아 관측소 월평균 CO₂의 분기 평균(배경대기 비교용)</li>
           <li>불확실성 표시: 값 대비 상대 비율(표준편차 ÷ 값 × 100, %)</li>
-          <li>농도 불확실성: 앙상블 표준편차의 지역 평균</li>
-          <li>배출량 불확실성: 격자별 앙상블 표준편차의 제곱합 제곱근(격자 오차 독립 가정). 전국 값은 시도 값의 제곱합 제곱근, 연 값은 네 분기 평균</li>
+          <li>농도 불확실성(2019·2020년만): 앙상블 표준편차의 지역 평균</li>
+          <li>배출량 불확실성(2019·2020년만): 격자별 앙상블 표준편차의 제곱합 제곱근(격자 오차 독립 가정). 전국 값은 시도 값의 제곱합 제곱근, 연 값은 네 분기 평균</li>
           <li>N₂O: 역산 대상 아님. EDGAR 격자 인벤토리(0.1°, 연 단위) 사용. CO₂ 환산 GWP₁₀₀ = 265</li>
           <li>2025년: 월별 역산 산출물 기반 배출량·생태계 흡수량(CO₂)만 제공(부문·농도·불확실성 없음)</li>
-          <li>2025년 생태계 흡수량: 2019·2020년 평균 일변화(MDV) 보정량 적용(보정량 = 분기 공개본 − 월별 산출물). 참고용</li>
-          <li>장기 분기별 배출량(2015–2020년, 2025년): 월별 역산 산출물의 분기 연환산. 분기 공개본과 수 % 차이 가능</li>
+          <li>2025년 생태계 흡수량: 2019·2020년 평균 일변화(MDV) 보정량 적용(보정량 = 매시 산출물 − 6시간 간격 산출물). 참고용</li>
+          <li>2025년 배출량: 처리 버전이 2015–2020년과 달라 연도 간 비교는 참고용</li>
         </ul>
       </div>
       <div>
@@ -497,7 +500,7 @@ select[hidden]{display:none}
 const $=s=>document.querySelector(s);
 let D,G;
 try{
-  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261008e',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
+  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261027a',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
 }catch(e){
   $('#app').innerHTML='<div class="err"><b>데이터를 불러오지 못했습니다.</b><br>data/sido_data.json, data/sido.geojson 파일이 같은 저장소에 있는지 확인해 주세요.<br>(PC에서 미리 볼 때는 폴더에서 <code>python3 -m http.server</code> 실행 후 http://localhost:8000 으로 접속)</div>';
   return;
@@ -521,15 +524,16 @@ const GROUPS=[['에너지',['ENE','REF','IND','RCO','TRO','TNR','SHI','AIR','PRO
               ['폐기물',['SWD','INC','LDF','WWT']],
               ['기타',['IDE']]];
 // N₂O: 역산 결과가 아닌 EDGAR 인벤토리(연 단위). 분기 구조에 맞춰 같은 연 값을 넣어 공통 코드로 처리
-const HAS_N2O=!!(D.n2o&&YEARS.every(y=>D.n2o.years.includes(+y)&&D.n2o.sec&&D.n2o.sec[y]));
+const HAS_N2O=!!(D.n2o&&YEARS.every(y=>D.n2o.years.includes(+y)));    // 부문 구성은 EDGAR 부문 파일이 있는 해에만
 if(HAS_N2O){
-  YEARS.forEach(y=>{const t=D.n2o.total[D.n2o.years.indexOf(+y)]; D.quarterly[y].n2o={emis:[t,t,t,t],sec:[0,1,2,3].map(()=>D.n2o.sec[y])};});
+  YEARS.forEach(y=>{const t=D.n2o.total[D.n2o.years.indexOf(+y)]; D.quarterly[y].n2o={emis:[t,t,t,t]}; if(D.n2o.sec&&D.n2o.sec[y]) D.quarterly[y].n2o.sec=[0,1,2,3].map(()=>D.n2o.sec[y]);});
   D.meta.sectors.n2o=D.n2o.sectors;
   document.querySelector('.gas-btn[data-gas="n2o"]').hidden=false;
 }
 const isInv=g=>g==='n2o';
 if(D.mlo&&D.mlo.co2) $('#mloNote').hidden=false;
-const HAS_SD=YEARS.every(y=>['co2','ch4'].every(g=>D.quarterly[y][g].emis_sd));   // 예전 데이터 파일이면 배출량 불확실성 없음
+const HAS_SD=YEARS.some(y=>['co2','ch4'].every(g=>D.quarterly[y][g].emis_sd));    // 불확실성은 공개본이 있는 해(2019·2020)에만
+const DETAIL_YEARS=(D.meta.detail_years||[]).map(String);                            // 부문 구성·불확실성이 있는 해
 // 분기 공개본이 없는 해(예: 2025년): 월별 산출물에서 만든 배출량만 있는 '부분 데이터' 연도
 const XQ=D.extra_quarterly||{}, XYEARS=Object.keys(XQ).sort();
 XYEARS.forEach(y=>{D.quarterly[y]={}; ['co2','ch4'].forEach(g=>{if(XQ[y][g+'_emis']){D.quarterly[y][g]={emis:XQ[y][g+'_emis']}; if(XQ[y][g+'_nee'])D.quarterly[y][g].nee=XQ[y][g+'_nee'];}});});
@@ -619,7 +623,7 @@ $('#btnBack').onclick=()=>setProv(-1);
 const subCache={};
 function prepSub(ds,pi){
   ds.pi=pi; ds.meta=D0.meta; ds.mlo=D0.mlo;
-  if(HAS_N2O&&ds.n2o) YEARS.forEach(y=>{const t=ds.n2o.total[ds.n2o.years.indexOf(+y)]; ds.quarterly[y].n2o={emis:[t,t,t,t],sec:[0,1,2,3].map(()=>ds.n2o.sec[y])};});
+  if(HAS_N2O&&ds.n2o) YEARS.forEach(y=>{const t=ds.n2o.total[ds.n2o.years.indexOf(+y)]; ds.quarterly[y].n2o={emis:[t,t,t,t]}; if(ds.n2o.sec&&ds.n2o.sec[y]) ds.quarterly[y].n2o.sec=[0,1,2,3].map(()=>ds.n2o.sec[y]);});
   const xq=ds.extra_quarterly||{};
   Object.keys(xq).forEach(y=>{ds.quarterly[y]={}; ['co2','ch4'].forEach(g=>{if(xq[y][g+'_emis']){ds.quarterly[y][g]={emis:xq[y][g+'_emis']}; if(xq[y][g+'_nee'])ds.quarterly[y][g].nee=xq[y][g+'_nee'];}});});
   return ds;
@@ -632,7 +636,7 @@ async function setProv(p){
     const code=D0.sido[p].code;
     if(!subCache[p]){
       try{
-        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261008e`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
+        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261027a`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
         subCache[p]={d:prepSub(d,p),g};
       }catch(e){ console.error('시군구 데이터를 불러오지 못했습니다',e); sel.value=st.prov; return; }
     }
@@ -721,16 +725,16 @@ function drawKpis(){
   const join=(...a)=>a.filter(Boolean).join(' · ');
   const cd=GAS[g].concDp, cu=GAS[g].concUnit;
   const partial=!has(g,'conc',y)&&!isInv(g);
-  const concSub=(isInv(g)||partial)?'':join(`불확실성 ± ${nf(V('conc_sd')/V('conc')*100,1)}%`, py?`${py}년 대비 ${delta(V('conc'),PV('conc'),d=>nf(d,cd)+' '+cu)}`:'');
+  const concSub=(isInv(g)||partial)?'':join(has(g,'conc_sd',y)?`불확실성 ± ${nf(V('conc_sd')/V('conc')*100,1)}%`:'', py?`${py}년 대비 ${delta(V('conc'),PV('conc'),d=>nf(d,cd)+' '+cu)}`:'');
   const sdSub=()=>HAS_SD&&has(g,'emis_sd',y)?`불확실성 ± ${nf(V('emis_sd')/V('emis')*100,1)}%`:'';
   let h='';
   if(isInv(g)){
-    const e=fFlux(V('emis'),g), eq=V('emis')*GWP_N2O, sv=sectors(g,y,p,i), top=Object.entries(sv).sort((a,b)=>b[1]-a[1])[0];
+    const e=fFlux(V('emis'),g), eq=V('emis')*GWP_N2O, sv=has(g,'sec',y)?sectors(g,y,p,i):null, top=sv&&Object.entries(sv).sort((a,b)=>b[1]-a[1])[0];
     const lab=k=>typeof SECTOR[k]==='object'?SECTOR[k][g]:(SECTOR[k]||k);
     h+=kpi('아산화질소 배출량',e.t,e.u,yoy('emis'),true);
     h+=kpi('CO₂ 환산 배출량',...eqFmt(eq),'GWP₁₀₀ = 265 적용');
     h+=shareTile();
-    h+=kpi('최대 배출 부문',nf(top[1]/V('emis')*100,0),'%',lab(top[0]));
+    h+=top?kpi('최대 배출 부문',nf(top[1]/V('emis')*100,0),'%',lab(top[0])):kpi('최대 배출 부문','–','',`${y}년 부문 데이터 없음`);
     $('#kpis').innerHTML=h; $('#regName').textContent=rName(i);
     $('#regCtx').textContent=`${GAS[g].name}(${GAS[g].sym}) · ${y}년 · EDGAR 인벤토리`;
     return;
@@ -860,7 +864,7 @@ function drawMonthly(){      // 월별 산출물을 분기로 묶은 장기 시�
 
 /* ───────── 한눈에 보기: 데이터에서 자동으로 만드는 지역 설명 ───────── */
 let FAC=null;       // 주요 시설 목록(없어도 동작: 시설 문장만 빠짐)
-fetch('data/facilities.json?v=20261008e',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{FAC=j; if(j) drawInsight();}).catch(()=>{});
+fetch('data/facilities.json?v=20261027a',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{FAC=j; if(j) drawInsight();}).catch(()=>{});
 const hasJong=w=>{const c=String(w).replace(/\([^)]*\)\s*$/,'').trim().slice(-1), k=c.charCodeAt(0);   // 끝의 괄호 설명은 빼고 판단
   if(k>=0xAC00&&k<=0xD7A3) return (k-0xAC00)%28!==0;
   if(/[0-9]/.test(c)) return '013678'.includes(c);
@@ -924,7 +928,7 @@ function gasText(c,g,y){
       topKeys=keys;
     }
   }
-  else if(!isInv(g)) out.push(`${y}년은 부문과 농도 데이터가 없어 그 설명은 생략했습니다.`);
+  else if(!isInv(g)) out.push(XYEARS.includes(y)?`${y}년은 부문과 농도 데이터가 없어 그 설명은 생략했습니다.`:`부문 구성은 ${DETAIL_YEARS.join('·')}년 데이터에만 있습니다.`);
   { const fs=facilitiesFor(c,g,topKeys), nmax=c.level==='sido'?4:3;
     if(fs.length){ const names=fs.slice(0,nmax).map(f=>f.n); out.push(`이 지역에는 ${names.join(', ')}${fs.length>nmax?' 등':''}${hasJong(fs.length>nmax?'등':names[names.length-1])?'이':'가'} 있습니다.`); } }
   // ④ 증감
@@ -985,7 +989,7 @@ function drawInsight(){
 function drawSectors(){
   const box=$('#secCols');
   if(!has(st.gas,'sec',st.year)){
-    box.innerHTML=`<div class="empty">${st.year}년은 부문별 배출량 데이터가 없습니다. 부문 구분은 ${YEARS.join('·')}년에서 볼 수 있습니다.</div>`;
+    box.innerHTML=`<div class="empty">${st.year}년은 부문별 배출량 데이터가 없습니다. 부문 구분은 ${DETAIL_YEARS.join('·')}년에서 볼 수 있습니다.</div>`;
     $('#secTitle').textContent=`부문별 ${GAS[st.gas].sym} 배출량`; $('#secSub').textContent=`${rName(st.sido)} · ${st.year}년`;
     return;
   }

@@ -42,7 +42,9 @@ SIDO = [  # (경계파일 코드 앞 2자리, 국문, 약칭, 영문)
     ("37", "경상북도", "경북", "Gyeongbuk"), ("38", "경상남도", "경남", "Gyeongnam"),
     ("39", "제주특별자치도", "제주", "Jeju"),
 ]
-YEARS = [2019, 2020]
+YEARS = list(range(2015, 2021))      # 화면에 보이는 해(배출량·흡수량·농도: nims_output 매시 기반 월평균)
+ZEN_YEARS = [2019, 2020]             # 분기 공개본(Zenodo)이 있는 해 → 부문 구성·불확실성은 이 해에만
+NIMS_DIR = "nims_output"
 NOSPLIT = {"29"}   # 하위 구역이 하나뿐인 세종특별자치시는 나누지 않고 시 전체로만 제공
 EXTRA_YEARS = [2025]                 # 분기 공개본은 없고 월별 산출물만 있는 해 → 배출량과 MDV 보정 NEE만 제공
 CELL_KM2 = 81.0                      # 9 km x 9 km
@@ -178,12 +180,12 @@ def build_quarterly():
     import netCDF4 as nc
     A, WF = load_weights()
     Asum = A.sum(1)
-    out = {"years": YEARS, "sectors": {}, "data": {}}
+    out = {"years": ZEN_YEARS, "sectors": {}, "data": {}}
 
     def flat(v):
         return np.nan_to_num(np.ma.filled(np.ma.masked_invalid(v), 0.0).astype(float)).reshape(v.shape[0], -1)
 
-    for yr in YEARS:
+    for yr in ZEN_YEARS:
         ec = nc.Dataset(f"emissions/wrfchem_dart_{yr}_quarterly_co2_emissions.nc")
         em = nc.Dataset(f"emissions/wrfchem_dart_{yr}_quarterly_ch4_emissions.nc")
         cc = nc.Dataset(f"concentration/wrfchem_dart_{yr}_quarterly_mean_co2.nc")
@@ -213,6 +215,44 @@ def build_quarterly():
               f"  (시군구 합 CO2 {y['co2']['emis'].mean(0)[n:].sum()/1e6:.1f})")
     out["area_km2"] = (Asum * CELL_KM2).tolist()
     json.dump(out, open(f"{CACHE}/quarterly.json", "w"))
+
+
+# ───────────────────────── 2b. nims_output: 매시 기반 월평균(2015–2020) ─────────────────────────
+def _nims_q(g, yr):
+    """nims_output 월평균(매시 744회 등)을 시간 가중으로 분기 평균. 반환: {변수: (4, 격자)} — 플럭스는 t/격자/yr, 농도는 ppm·ppb."""
+    keys = ("ean", "gee", "res", "tot") if g == "co2" else ("ean", "tot")
+    out = {k: np.zeros((4, 135 * 96)) for k in keys}
+    for q in range(4):
+        H = 0
+        for mm in range(3 * q + 1, 3 * q + 4):
+            z = np.load(f"{NIMS_DIR}/{g}_{yr}{mm:02d}_sfc_1h_YU_monthly.npz")
+            h = calendar.monthrange(yr, mm)[1] * 24; H += h
+            for k in keys:
+                out[k][q] += np.nan_to_num(z[k].astype(float)).ravel() * h
+        for k in keys:
+            out[k][q] /= H
+    M = M_CO2 if g == "co2" else M_CH4
+    for k in keys:
+        out[k] *= (CELL_KM2 * 8760 / 1e6 * M) if k != "tot" else (1.0 if g == "co2" else 1000.0)   # CH4 ppm → ppb
+    return out
+
+
+def build_nims():
+    A, WF = load_weights()
+    Asum = A.sum(1)
+    res, ns = {}, len(SIDO)
+    for yr in YEARS:
+        c, m = _nims_q("co2", yr), _nims_q("ch4", yr)
+        nee = c["gee"] + c["res"]
+        res[str(yr)] = {
+            "co2": {"emis": (c["ean"] @ WF.T).tolist(), "nee": (nee @ WF.T).tolist(), "gee": (c["gee"] @ WF.T).tolist(),
+                    "res": (c["res"] @ WF.T).tolist(), "conc": ((c["tot"] @ A.T) / Asum).tolist()},
+            "ch4": {"emis": (m["ean"] @ WF.T).tolist(), "conc": ((m["tot"] @ A.T) / Asum).tolist()},
+        }
+        r = res[str(yr)]
+        print(f"  {yr}: CO2 {np.mean(r['co2']['emis'], 0)[:ns].sum()/1e6:.1f} Mt/yr, NEE {np.mean(r['co2']['nee'], 0)[:ns].sum()/1e6:.1f} Mt/yr, "
+              f"CH4 {np.mean(r['ch4']['emis'], 0)[:ns].sum()/1e3:.1f} kt/yr, 농도 CO2 {np.mean(r['co2']['conc'], 0)[:ns].mean():.1f} ppm, CH4 {np.mean(r['ch4']['conc'], 0)[:ns].mean():.0f} ppb", flush=True)
+    json.dump(res, open(f"{CACHE}/nims.json", "w"))
 
 
 # ───────────────────────── 3. 월별 자료(npz) ─────────────────────────
@@ -248,7 +288,7 @@ def build_monthly():
 # ───────────────────────── 3a. 분기 공개본이 없는 해의 생태계 흡수량(NEE): MDV 보정 ─────────────────────────
 def build_mdv():
     """월별 산출물(npz)의 NEE는 6시간 간격 분석시각(하루 4회)만의 평균이라 일변화가 제대로 반영되지 않는다.
-    분기 공개본(매시 평균, 2019·2020년)과 같은 해 npz 분기 평균의 차이를 평균 일변화(MDV) 보정량으로 보고,
+    nims_output(매시 기반, 2019·2020년)과 같은 해 npz(6시간 간격) 분기 평균의 차이를 평균 일변화(MDV) 보정량으로 보고,
     두 해의 보정량을 격자·분기별로 평균해 EXTRA_YEARS(2025년)의 npz 분기 평균 NEE에 더한다."""
     import netCDF4 as nc
     A, WF = load_weights()
@@ -268,14 +308,14 @@ def build_mdv():
             out[q] *= fac / H
         return out
 
-    def zen(yr):
-        v = nc.Dataset(f"emissions/wrfchem_dart_{yr}_quarterly_co2_emissions.nc")["NEE"][:]
-        return np.nan_to_num(np.ma.filled(np.ma.masked_invalid(v), 0.0).astype(float)).reshape(4, -1)
+    def hourly(yr):
+        c = _nims_q("co2", yr)
+        return c["gee"] + c["res"]
 
-    d = [zen(y) - rawq(y) for y in YEARS]
+    d = [hourly(y) - rawq(y) for y in ZEN_YEARS]
     mdv = np.mean(d, 0)                                       # (4, 격자) 2019·2020년 평균 MDV 보정량
     ns = len(SIDO); res = {}
-    for i, y in enumerate(YEARS):
+    for i, y in enumerate(ZEN_YEARS):
         print(f"  {y} MDV 보정량(전국, Mt/yr, 분기별):", np.round((d[i] @ WF.T)[:, :ns].sum(1) / 1e6, 1).tolist())
     print("  평균 MDV 보정량:", np.round((mdv @ WF.T)[:, :ns].sum(1) / 1e6, 1).tolist())
     for y in EXTRA_YEARS:
@@ -386,7 +426,21 @@ def read_mlo():
 # ───────────────────────── 4. 웹용 JSON 묶기 ─────────────────────────
 def pack():
     """웹용 JSON 묶기: 전국(시도 17개) 파일 + 시도별 시군구 파일(data/sigungu/<시도코드>.json)."""
-    q = json.load(open(f"{CACHE}/quarterly.json"))
+    q = json.load(open(f"{CACHE}/quarterly.json"))           # Zenodo 공개본(2019·2020): 부문 구성·불확실성
+    nx = json.load(open(f"{CACHE}/nims.json"))               # nims_output(2015–2020): 배출량·흡수량·농도
+    merged = {}
+    for y in YEARS:
+        d = {g: {k: v for k, v in nx[str(y)][g].items()} for g in ("co2", "ch4")}
+        z = q["data"].get(str(y))
+        if z:
+            for g in ("co2", "ch4"):
+                en, ez = np.asarray(d[g]["emis"], float), np.asarray(z[g]["emis"], float)
+                f = np.where(ez > 0, en / np.where(ez > 0, ez, 1), 1.0)    # 공개본 부문·불확실성을 nims 배출량 규모로 환산(비율 유지)
+                d[g]["sec"] = (np.asarray(z[g]["sec"], float) * f[..., None]).tolist()
+                d[g]["emis_sd"] = (np.asarray(z[g]["emis_sd"], float) * f).tolist()
+                d[g]["conc_sd"] = z[g]["conc_sd"]
+        merged[str(y)] = d
+    q = {"years": YEARS, "sectors": q["sectors"], "data": merged, "area_km2": q["area_km2"]}
     mpath = f"{CACHE}/monthly.json"
     m = json.load(open(mpath)) if os.path.exists(mpath) else None
     n2o = json.load(open(f"{CACHE}/n2o.json")) if os.path.exists(f"{CACHE}/n2o.json") else None
@@ -412,7 +466,7 @@ def pack():
         if m:
             # 월별 NEE는 Zenodo 분기 공개본과 값 차이가 커서 웹 자료에는 싣지 않음(캐시에만 보관)
             mc, m4 = np.asarray(m["co2_emis"], float)[:, idx], np.asarray(m["ch4_emis"], float)[:, idx]
-            o["monthly"] = {"months": m["months"], "co2_emis": r(mc), "ch4_emis": r(m4, 2 if small else 1)}
+            # 장기 월별 시계열은 2015–2020년이 분기 자료로 들어가므로 웹 자료에서 제외(2025년 분기 묶음에만 사용)
             # 분기 공개본이 없는 해(EXTRA_YEARS)는 월별 산출물을 분기로 묶어 배출량만 제공 (t/yr, 연환산)
             ex = {}
             for y in EXTRA_YEARS:
@@ -442,6 +496,7 @@ def pack():
     cells = np.asarray(q["area_km2"], float) / CELL_KM2          # 지역이 덮는 격자 수(농도 평균 가중치)
     out = {
         "meta": {"model": "WRF-Chem/DART", "grid_km": 9, "years": q["years"], "sectors": q["sectors"],
+                 "detail_years": ZEN_YEARS,
                  "boundary_base_year": 2018,
                  "units": {"flux_quarterly": "t/yr (분기 평균의 연환산율)", "flux_monthly": "t/월",
                            "co2_conc": "ppm", "ch4_conc": "ppb"}},
@@ -473,7 +528,7 @@ def pack():
 
 
 if __name__ == "__main__":
-    steps = sys.argv[1:] or ["weights", "quarterly", "monthly", "mdv", "n2o", "pack"]
+    steps = sys.argv[1:] or ["weights", "quarterly", "nims", "monthly", "mdv", "n2o", "pack"]
     for s in steps:
         print(f"=== {s} ===", flush=True)
-        {"weights": build_weights, "quarterly": build_quarterly, "monthly": build_monthly, "mdv": build_mdv, "n2o": build_n2o, "pack": pack}[s]()
+        {"weights": build_weights, "quarterly": build_quarterly, "nims": build_nims, "monthly": build_monthly, "mdv": build_mdv, "n2o": build_n2o, "pack": pack}[s]()
