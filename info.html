@@ -346,6 +346,7 @@ select[hidden]{display:none}
 .ig-kpi .big small{font-size:15px;font-weight:600;margin-left:4px;color:var(--text-secondary);letter-spacing:0}
 .ig-kpi .big.up{color:var(--red)}
 .ig-kpi .big.green{color:#2E7D32}
+.ig-kpi .big.word{font-size:30px;letter-spacing:-.6px}
 .ig-kpi .desc{font-size:13px;line-height:1.55;color:var(--text-tertiary);margin-top:8px;word-break:keep-all}
 .ig-toc{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 4px}
 .ig-toc a{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border:1px solid var(--border-subtle);border-radius:999px;color:#111;text-decoration:none;font-size:14px;font-weight:500;background:#fff}
@@ -437,8 +438,8 @@ select[hidden]{display:none}
     <h1>대기 관측으로 거꾸로 추적한 남한의 온실가스 배출과 산림 흡수</h1>
     <p>WRF-Chem/DART 대기 역산(국립기상과학원 운영 체계, 2014–2020년)으로 추정한 배출량과 산림 흡수량을 국가 온실가스 인벤토리와 비교했습니다. 관측소 배경농도를 어떻게 정하느냐가 배출량 추정에 얼마나 중요한지도 함께 정리했습니다.</p>
     <div class="ig-kpis">
-      <div class="ig-kpi"><div class="lab">CO₂ 배출량 · 역산 vs 인벤토리</div><div class="big">−7<small>%</small></div><div class="desc">2014–2020년 평균 약 615 Mt 대 661 Mt. 역산 추정이 국가 인벤토리보다 조금 낮음</div></div>
-      <div class="ig-kpi"><div class="lab">CH₄ 배출량 · 역산 vs 인벤토리</div><div class="big up">+27<small>%</small></div><div class="desc">2014–2020년 평균 약 48 대 37 Mt CO₂eq. 2020년에는 차이가 약 43%로 커짐</div></div>
+      <div class="ig-kpi"><div class="lab">CO₂ 배출량 · 대기 관측 추정 vs 인벤토리</div><div class="big word">다소 작음</div><div class="desc">대기 관측으로 추정한 CO₂ 배출량은 국가 인벤토리보다 다소 작음(2014–2020년)</div></div>
+      <div class="ig-kpi"><div class="lab">CH₄ 배출량 · 대기 관측 추정 vs 인벤토리</div><div class="big word">다소 큼</div><div class="desc">대기 관측으로 추정한 CH₄ 배출량은 국가 인벤토리보다 다소 큼(2014–2020년)</div></div>
       <div class="ig-kpi"><div class="lab">산림 순흡수량 (역산)</div><div class="big green">42.5<small>Mt CO₂/yr</small></div><div class="desc">2014–2020년 평균. 국가 인벤토리 산림지(4.A) 흡수량 40–49 Mt과 비슷한 규모</div></div>
     </div>
   </section>
@@ -448,7 +449,7 @@ select[hidden]{display:none}
     <div class="rd-stage" id="rdStage">
       <article class="rd-slide on" role="group" aria-roledescription="slide" aria-label="1 / 5: 역산 배출량과 국가 인벤토리">
         <div class="im"><img src="figures/5.png" alt="역산 배출량과 국가 인벤토리" loading="eager"></div>
-        <div class="tx"><div class="no">01 · 배출량 비교</div><h3>역산 배출량과 국가 인벤토리</h3><div class="num">CH₄ +27%<small>2014–2020년 평균, 역산이 인벤토리보다 높은 비율</small></div><p>대기 역산으로 추정한 CO₂ 배출량은 국가 인벤토리보다 매년 약 2–9% 낮습니다. 반대로 CH₄는 평균 27% 높고, 2020년에는 약 51 대 36 Mt CO₂eq로 차이가 더 커졌습니다.</p><a href="#s1">자세히 보기</a></div>
+        <div class="tx"><div class="no">01 · 배출량 비교</div><h3>역산 배출량과 국가 인벤토리</h3><div class="num">CO₂ 다소 작음 · CH₄ 다소 큼<small>대기 관측 추정 배출량, 국가 인벤토리 대비</small></div><p>대기 관측으로 추정한 배출량은 국가 인벤토리에 비해 CO₂는 다소 작고, CH₄는 다소 큽니다. 온실가스종합정보센터(GIR)의 정밀 자료가 제공되면 더 정확한 추정이 가능합니다.</p><a href="#s1">자세히 보기</a></div>
       </article>
       <article class="rd-slide" role="group" aria-roledescription="slide" aria-label="2 / 5: 산림이 흡수하는 CO₂">
         <div class="im"><img src="figures/2a_forest_uptake.png" alt="산림이 흡수하는 CO₂" loading="lazy"></div>
@@ -479,7 +480,7 @@ select[hidden]{display:none}
   </nav>
 
   <section class="ig-sec" id="s1">
-    <div class="ig-sec-head"><span class="ig-num">1</span><div><h2>역산 배출량과 국가 인벤토리</h2><p class="msg">CO₂는 역산이 인벤토리보다 조금 낮고, CH₄는 역산이 인벤토리보다 뚜렷하게 높습니다.</p></div></div>
+    <div class="ig-sec-head"><span class="ig-num">1</span><div><h2>역산 배출량과 국가 인벤토리</h2><p class="msg">대기 관측으로 추정한 배출량은 국가 인벤토리에 비해 CO₂는 다소 작고, CH₄는 다소 큽니다.</p></div></div>
     <div class="ig-body even">
       <figure class="ig-fig"><a href="figures/5.png" target="_blank" rel="noopener" title="원본 크기로 보기"><img src="figures/5.png" alt="2014–2020년 CO₂·CH₄ 연간 배출량: 역산 사전·사후 추정과 국가 인벤토리 비교" loading="lazy"></a><figcaption>(a) CO₂, (b) CH₄ 연간 배출량. 하늘색: 역산 사전(prior), 남색: 역산 사후(posterior), 회색: 국가 인벤토리(GIR) + LULUCF(산림지 제외).</figcaption></figure>
       <div class="ig-points">
@@ -489,9 +490,10 @@ select[hidden]{display:none}
         </div>
         <h3>핵심</h3>
         <ul>
-          <li><b>CO₂</b>: 역산 사후 추정이 매년 인벤토리보다 낮고, 차이는 약 2–9%입니다. 관측으로 보정하면 사전 추정보다 약 2–3% 줄어듭니다.</li>
-          <li><b>CH₄</b>: 역산 추정은 2014년 약 46 Mt에서 2020년 약 51 Mt CO₂eq로 늘었지만, 인벤토리는 약 38 Mt에서 36 Mt으로 줄었습니다.</li>
-          <li>CH₄는 관측 보정 후에도 사전 추정과 거의 같아, 관측이 사전 추정을 크게 바꾸지 못했습니다. 차이의 원인은 배출원별 검증이 필요합니다.</li>
+          <li><b>CO₂</b>: 대기 관측으로 추정한 배출량이 매년 인벤토리보다 다소 작습니다. 관측으로 보정하면 사전 추정보다 약 2–3% 줄어듭니다.</li>
+          <li><b>CH₄</b>: 대기 관측으로 추정한 배출량이 인벤토리보다 다소 큽니다. 역산 추정은 2014년 약 46 Mt에서 2020년 약 51 Mt CO₂eq로 늘었지만, 인벤토리는 약 38 Mt에서 36 Mt으로 줄었습니다.</li>
+          <li>CH₄는 관측 보정 후에도 사전 추정(EDGAR)과 거의 같아, 차이의 원인은 배출원별 검증이 필요합니다.</li>
+          <li><b>온실가스종합정보센터(GIR)의 정밀 자료</b>(시설·부문별 배출 정보 등)가 제공되면 사전 추정을 개선해 보다 정확한 추정이 가능합니다.</li>
         </ul>
       </div>
     </div>
