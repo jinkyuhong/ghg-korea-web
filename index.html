@@ -332,6 +332,8 @@ select[hidden]{display:none}
   .refs li{padding:14px}
 }
 @media (max-width:420px){nav.main a{padding:0 5px;font-size:12.5px} .brand b{font-size:14px} .brand::before{width:8px!important;height:8px!important} .top-in{gap:6px}}
+.ig-credit{margin:20px 0 0;padding:12px 16px;border-left:3px solid var(--red);background:#fff;font-size:13.5px;line-height:1.7;color:var(--text-secondary);word-break:keep-all;overflow-wrap:anywhere}
+.ig-credit a{color:#111;text-decoration:underline;text-underline-offset:2px}
 </style>
 </head>
 <body data-gas="co2">
@@ -350,6 +352,8 @@ select[hidden]{display:none}
 </header>
 
 <main class="wrap" id="app">
+  <div class="ig-credit">본 정보는 기상청의 국가연구개발과제 지원을 받아 연세대학교 미기상학 연구실에서 개발하였습니다.<br>
+    관련 문의 및 수정 제안: 연세대학교 미기상학 연구실 (<a href="https://eapl.yonsei.ac.kr" target="_blank" rel="noopener">https://eapl.yonsei.ac.kr</a> / <a href="mailto:jhong@yonsei.ac.kr">jhong@yonsei.ac.kr</a>)</div>
   <section id="dashboard">
     <div class="gasbar">
       <div class="gas-switch" role="group" aria-label="온실가스 선택">
@@ -370,7 +374,7 @@ select[hidden]{display:none}
 
     <div class="filters">
       <div class="f"><label for="selSido">지역</label><select id="selSido" aria-label="시도"></select><select id="selSgg" aria-label="시군구" hidden></select></div>
-      <div class="f"><span class="lab">연도</span><div class="seg" id="segYear"></div></div>
+      <div class="f"><label for="selYear">연도</label><select id="selYear" aria-label="연도"></select></div>
       <div class="f" id="fPeriod"><span class="lab">기간</span><div class="seg" id="segPeriod"></div></div>
     </div>
     <div class="alert" id="n2oNote" role="note" hidden></div>
@@ -500,7 +504,7 @@ select[hidden]{display:none}
 const $=s=>document.querySelector(s);
 let D,G;
 try{
-  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261027a',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
+  [D,G]=await Promise.all(['data/sido_data.json','data/sido.geojson'].map(u=>fetch(u+'?v=20261027c',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(u);return r.json()})));
 }catch(e){
   $('#app').innerHTML='<div class="err"><b>데이터를 불러오지 못했습니다.</b><br>data/sido_data.json, data/sido.geojson 파일이 같은 저장소에 있는지 확인해 주세요.<br>(PC에서 미리 볼 때는 폴더에서 <code>python3 -m http.server</code> 실행 후 http://localhost:8000 으로 접속)</div>';
   return;
@@ -540,7 +544,7 @@ XYEARS.forEach(y=>{D.quarterly[y]={}; ['co2','ch4'].forEach(g=>{if(XQ[y][g+'_emi
 const ALLY=YEARS.concat(XYEARS).sort();
 const has=(g,k,y)=>{k=k==='net'?'nee':(k==='share'||k==='eq')?'emis':k; return !!(D.quarterly[y]&&D.quarterly[y][g]&&D.quarterly[y][g][k]);};
 const yearsOf=g=>ALLY.filter(y=>has(g,'emis',y));
-const st={gas:'co2',prov:-1,sido:-1,year:YEARS[YEARS.length-1],period:'a',metric:'emis',sort:{k:'emis',dir:-1}};
+const st={gas:'co2',prov:-1,sido:-1,year:YEARS.includes('2020')?'2020':YEARS[YEARS.length-1],period:'a',metric:'emis',sort:{k:'emis',dir:-1}};
 
 /* ───────── 값 조회 ───────── */
 const isConc=k=>k.startsWith('conc');
@@ -636,7 +640,7 @@ async function setProv(p){
     const code=D0.sido[p].code;
     if(!subCache[p]){
       try{
-        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261027a`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
+        const [d,g]=await Promise.all(['json','geojson'].map(x=>fetch(`data/sigungu/${code}.${x}?v=20261027c`,{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(code);return r.json()})));
         subCache[p]={d:prepSub(d,p),g};
       }catch(e){ console.error('시군구 데이터를 불러오지 못했습니다',e); sel.value=st.prov; return; }
     }
@@ -864,7 +868,7 @@ function drawMonthly(){      // 월별 산출물을 분기로 묶은 장기 시�
 
 /* ───────── 한눈에 보기: 데이터에서 자동으로 만드는 지역 설명 ───────── */
 let FAC=null;       // 주요 시설 목록(없어도 동작: 시설 문장만 빠짐)
-fetch('data/facilities.json?v=20261027a',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{FAC=j; if(j) drawInsight();}).catch(()=>{});
+fetch('data/facilities.json?v=20261027c',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(j=>{FAC=j; if(j) drawInsight();}).catch(()=>{});
 const hasJong=w=>{const c=String(w).replace(/\([^)]*\)\s*$/,'').trim().slice(-1), k=c.charCodeAt(0);   // 끝의 괄호 설명은 빼고 판단
   if(k>=0xAC00&&k<=0xD7A3) return (k-0xAC00)%28!==0;
   if(/[0-9]/.test(c)) return '013678'.includes(c);
@@ -1051,7 +1055,9 @@ function render(){
   sel.value=inProv()?st.prov:st.sido; selG.hidden=!inProv(); if(inProv()) selG.value=st.sido;
   const sn=$('#sggNote'); sn.hidden=!inProv();
   if(inProv()) sn.textContent='시군구 값은 9 km 격자(약 81 km²)의 값을 면적 비율로 나눈 추정치입니다. 격자보다 작은 시·군·구는 이웃 지역과 실제 차이가 구분되지 않으니 참고용으로 보아 주세요.';
-  seg($('#segYear'),yearsOf(st.gas).map(y=>[y,y+'년']),st.year,v=>{st.year=v;render();});
+  const sy=$('#selYear'), avail=yearsOf(st.gas).map(String), y0=+ALLY[0], y1=+ALLY[ALLY.length-1], opts=[];   // 2015–2025년 전체를 보이고, 데이터가 없는 해는 비활성
+  for(let y=y0;y<=y1;y++){const ok=avail.includes(String(y)); opts.push(`<option value="${y}"${ok?'':' disabled'}>${y}년${ok?'':' (데이터 없음)'}</option>`);}
+  sy.innerHTML=opts.join(''); sy.value=String(st.year); sy.onchange=()=>{st.year=sy.value;render();};
   if(!has(st.gas,st.metric,st.year)) st.metric='emis';
   seg($('#segPeriod'),[['a','연평균'],[0,'1분기'],[1,'2분기'],[2,'3분기'],[3,'4분기']],st.period,v=>{st.period=v==='a'?'a':+v;render();});
   seg($('#segMetric'),Object.entries(METRICS).filter(([k])=>(k!=='nee'||st.gas==='co2')&&(k!=='emis_sd'||HAS_SD)&&has(st.gas,k,st.year)),st.metric,v=>{st.metric=v;render();});

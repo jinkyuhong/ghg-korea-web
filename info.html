@@ -444,7 +444,7 @@ select[hidden]{display:none}
   </section>
 
   <section class="rd" aria-roledescription="carousel" aria-label="주요 그림 한눈에 보기">
-    <div class="rd-head"><h2>주요 그림 한눈에 보기</h2><span class="hint">2초마다 넘어갑니다 · 마우스를 올리면 멈춥니다</span></div>
+    <div class="rd-head"><h2>주요 그림 한눈에 보기</h2><span class="hint">4초마다 넘어갑니다 · 마우스를 올리면 멈춥니다</span></div>
     <div class="rd-stage" id="rdStage">
       <article class="rd-slide on" role="group" aria-roledescription="slide" aria-label="1 / 5: 역산 배출량과 국가 인벤토리">
         <div class="im"><img src="figures/5.png" alt="역산 배출량과 국가 인벤토리" loading="eager"></div>
@@ -612,7 +612,7 @@ select[hidden]{display:none}
     cur=n; mark();
   }
   function mark(){db.forEach((d,k)=>d.setAttribute('aria-current',k===cur?'true':'false'));}
-  function run(){clearInterval(timer); if(!paused&&!hover) timer=setInterval(()=>show(cur+1),2000);}
+  function run(){clearInterval(timer); if(!paused&&!hover) timer=setInterval(()=>show(cur+1),4000);}
   db.forEach((d,k)=>d.onclick=()=>{show(k);run();});
   document.getElementById('rdPrev').onclick=()=>{show(cur-1);run();};
   document.getElementById('rdNext').onclick=()=>{show(cur+1);run();};
